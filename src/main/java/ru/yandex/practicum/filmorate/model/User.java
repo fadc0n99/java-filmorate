@@ -1,34 +1,36 @@
 package ru.yandex.practicum.filmorate.model;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PastOrPresent;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.hibernate.validator.constraints.Length;
 
 import java.time.LocalDate;
 
 /**
- * Film.
+ * User.
  */
 @Data
 @EqualsAndHashCode(of = { "id" })
 @Builder(toBuilder = true)
-public class Film {
+public class User {
     private Long id;
 
     @NotNull
     @NotBlank
-    private String name;
-
-    @Length(max = 200)
-    private String description;
+    @Email
+    private String email;
 
     @NotNull
-    private LocalDate releaseDate;
+    @NotBlank
+    private String login;
 
-    @Positive
-    private Integer duration;
+    private String name;
+
+    @PastOrPresent
+    private LocalDate birthday;
+
 }
