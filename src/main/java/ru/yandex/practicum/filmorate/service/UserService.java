@@ -1,29 +1,38 @@
 package ru.yandex.practicum.filmorate.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 @Slf4j
 public class UserService {
 
-    private final Map<Long, User> users = new HashMap<>();
+    private final UserStorage userStorage;
+
+    private static final String USER_NOT_FOUND_MESSAGE = "User with ID %d not found";
+    private static final String INVALID_USER_ID_MESSAGE = "Invalid user ID: must be greater than 0";
+    private static final String SELF_INTERACTION_MESSAGE = "Users cannot interact with themselves";
 
     public Collection<User> findAllUsers() {
-        return users.values();
+        log.debug("Retrieving all users from storage");
+
+        Collection<User> users = userStorage.getAll();
+        log.debug("Retrieved {} users", users.size());
+
+        return users;
     }
 
     public User createUser(User newUser) {
-        newUser.setId(generateId());
-
-        validateLogin(newUser);
+        log.debug("Starting user creation: {}", newUser);
 
         // Если имя не указано, то используем логин как имя
         if (newUser.getName() == null) {
@@ -32,55 +41,111 @@ public class UserService {
             newUser.setName(newUser.getLogin());
         }
 
-        users.put(newUser.getId(), newUser);
-
-        return newUser;
+        User createdUser = userStorage.save(newUser);
+        log.info("User creation completed. ID: {}, Login: {}", createdUser.getId(), createdUser.getLogin());
+        return createdUser;
     }
 
     public User updateUser(User newUser) {
-        if (newUser.getId() == null) {
-            log.warn("User not be update: missing ID. Request data: {}", newUser);
-            throw new ValidationException("ID not be null or empty");
-        }
+        requireValidUser(newUser.getId());
 
-        validateLogin(newUser);
+        log.debug("Starting update user. ID: {}, Login: {}", newUser.getId(), newUser.getLogin());
 
-        if (users.containsKey(newUser.getId())) {
-            log.debug("Starting update user. ID: {}, Login: {}", newUser.getId(), newUser.getLogin());
-            User oldUser = users.get(newUser.getId());
+        User updatedUser = userStorage.update(newUser);
 
-            log.trace("Current user data: {}", oldUser);
+        log.info("User update completed. ID: {}, Login: {}", updatedUser.getId(), updatedUser.getLogin());
 
-            if (newUser.getName() != null && !newUser.getName().isBlank()) {
-                oldUser.setName(newUser.getName());
-            }
-
-            oldUser.setLogin(newUser.getLogin());
-            oldUser.setEmail(newUser.getEmail());
-            oldUser.setBirthday(newUser.getBirthday());
-
-            return oldUser;
-        }
-
-        throw new NotFoundException("User with ID " + newUser.getId() + " not found");
+        return updatedUser;
     }
 
-    private void validateLogin(User newUser) {
-        if (newUser.getLogin() != null && newUser.getLogin().contains(" ")) {
-            log.warn("User create error. Invalid login: {}", newUser.getLogin());
-            throw new ValidationException("User login must not contain spaces");
+    public User getUser(long userId) {
+        requireValidUser(userId);
+
+        log.debug("Retrieving user by ID: {}", userId);
+        User user = userStorage.getUserById(userId);
+        log.trace("Retrieved film details: {}", user);
+
+        return user;
+    }
+
+    public void addFriend(long userId, long friendId) {
+        checkUsersCanInteract(userId, friendId);
+
+        log.debug("Attempting to add friend relationship. User ID: {}, Friend ID: {}", userId, friendId);
+
+        if (areFriends(userId, friendId)) {
+            log.info("Friendship already exists between user {} and user {}", userId, friendId);
+            return;
+        }
+
+        userStorage.addFriendship(userId, friendId);
+        log.info("Friendship added between user {} and user {}", userId, friendId);
+    }
+
+    public List<User> getUserFriends(long userId) {
+        requireValidUser(userId);
+
+        log.debug("Retrieving friends for user ID: {}", userId);
+
+        List<User> friends = userStorage.getUserFriends(userId);
+
+        log.trace("Retrieved {} friends for user ID: {}", friends.size(), userId);
+        return friends;
+    }
+
+    public void removeFriend(long userId, long friendId) {
+        checkUsersCanInteract(userId, friendId);
+
+        log.debug("Attempting to remove friend relationship. User ID: {}, Friend ID: {}", userId, friendId);
+
+        if (areFriends(userId, friendId)) {
+            userStorage.removeFriendship(userId, friendId);
+            log.info("Friendship removed between user {} and user {}", userId, friendId);
+        } else {
+            log.warn("Friendship not found between user {} and user {}", userId, friendId);
         }
     }
 
-    private Long generateId() {
-        long currentId = users.keySet()
-                .stream()
-                .mapToLong(id -> id)
-                .max()
-                .orElse(0);
+    public List<User> getCommonFriends(long userId, long otherUserId) {
+        checkUsersCanInteract(userId, otherUserId);
 
-        log.debug("Generated new ID for User. New ID: {}", currentId + 1);
+        log.debug("Finding common friends between user {} and user {}", userId, otherUserId);
 
-        return ++currentId;
+        List<User> commonFriends = userStorage.getUsersCommonFriends(userId, otherUserId);
+
+        log.debug("Found {} common friends", commonFriends.size());
+
+        return commonFriends;
     }
+
+    private boolean areFriends(long userId, long friendId) {
+        boolean isFriend = userStorage.isFriend(userId, friendId);
+
+        log.trace("Friendship check. User ID: {}, Friend ID: {}, Result: {}", userId, friendId, isFriend);
+
+        return isFriend;
+    }
+
+    private void checkUsersCanInteract(long userId, long otherUserId) {
+        if (userId == otherUserId) {
+            log.info("User {} attempted to interact with themselves", userId);
+            throw new ValidationException(SELF_INTERACTION_MESSAGE);
+        }
+        requireValidUser(userId);
+        requireValidUser(otherUserId);
+    }
+
+    public boolean isUserExists(long userId) {
+        return userStorage.isExistById(userId);
+    }
+
+    public void requireValidUser(long userId) {
+        if (userId <= 0) {
+            throw new ValidationException(INVALID_USER_ID_MESSAGE);
+        }
+        if (!isUserExists(userId)) {
+            throw new NotFoundException(String.format(USER_NOT_FOUND_MESSAGE, userId));
+        }
+    }
+
 }
