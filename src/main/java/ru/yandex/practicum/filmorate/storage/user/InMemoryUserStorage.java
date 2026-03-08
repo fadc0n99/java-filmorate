@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.storage.user;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.util.*;
@@ -14,7 +15,6 @@ import java.util.stream.Collectors;
 public class InMemoryUserStorage implements UserStorage {
 
     private final Map<Long, User> users;
-    private final Map<Long, Set<Long>> userFriends;
 
     @Override
     public Collection<User> getAll() {
@@ -45,13 +45,36 @@ public class InMemoryUserStorage implements UserStorage {
 
     @Override
     public void addFriendship(long userId, long friendId) {
-        userFriends.computeIfAbsent(userId, k -> new HashSet<>()).add(friendId);
-        userFriends.computeIfAbsent(friendId, k -> new HashSet<>()).add(userId);
+        User user = users.get(userId);
+        User friend = users.get(friendId);
+
+        if (user == null || friend == null) {
+            throw new NotFoundException("User not found: userId=" + userId + ", friendId=" + friendId);
+        }
+
+        Set<Long> userFriendsIds = user.getFriendsIds();
+        Set<Long> otherFriendsIds = friend.getFriendsIds();
+
+        if (userFriendsIds != null) {
+            userFriendsIds.add(friendId);
+        } else {
+            user.setFriendsIds(new HashSet<>(Set.of(friendId)));
+        }
+        if (otherFriendsIds != null) {
+            otherFriendsIds.add(userId);
+        } else {
+            friend.setFriendsIds(new HashSet<>(Set.of(userId)));
+        }
     }
 
     @Override
     public Set<Long> getUserFriendsIds(long userId) {
-        return userFriends.getOrDefault(userId, Collections.emptySet());
+        User user = users.get(userId);
+        if (user == null) {
+            log.warn("User with ID {} not found", userId);
+            return Collections.emptySet();
+        }
+        return user.getFriendsIds() != null ? user.getFriendsIds() : Collections.emptySet();
     }
 
     @Override
@@ -61,24 +84,26 @@ public class InMemoryUserStorage implements UserStorage {
 
     @Override
     public List<User> getUserFriends(long userId) {
-        return userFriends.getOrDefault(userId, new HashSet<>())
-                .stream()
-                .map(users::get)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        return Optional.ofNullable(users.get(userId))
+                .map(User::getFriendsIds)
+                .map(friendIds -> friendIds.stream()
+                        .map(this::getUserById)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
     }
 
     @Override
     public void removeFriendship(long userId, long friendId) {
-        userFriends.computeIfPresent(userId, (id, friends) -> {
-            friends.remove(friendId);
-            return friends.isEmpty() ? null : friends;
-        });
+        Set<Long> userFriendsIds = users.get(userId).getFriendsIds();
+        Set<Long> otherFriendsIds = users.get(friendId).getFriendsIds();
 
-        userFriends.computeIfPresent(friendId, (id, friends) -> {
-            friends.remove(userId);
-            return friends.isEmpty() ? null : friends;
-        });
+        if (userFriendsIds != null) {
+            userFriendsIds.remove(friendId);
+        }
+        if (otherFriendsIds != null) {
+            otherFriendsIds.remove(userId);
+        }
     }
 
     @Override
@@ -86,16 +111,21 @@ public class InMemoryUserStorage implements UserStorage {
         Set<Long> friendsIds = getUserFriendsIds(userId);
         Set<Long> otherFriendsIds = getUserFriendsIds(otherUserId);
 
+        if (friendsIds == null || otherFriendsIds == null) {
+            return Collections.emptyList();
+        }
+
         return friendsIds.stream()
                 .filter(otherFriendsIds::contains)
                 .map(this::getUserById)
+                .filter(Objects::nonNull)
                 .toList();
     }
 
     @Override
     public boolean isFriend(long userId, long friendId) {
         Set<Long> friendsIds = getUserFriendsIds(userId);
-        return friendsIds.contains(friendId);
+        return friendsIds != null && friendsIds.contains(friendId);
     }
 
     @Override

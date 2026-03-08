@@ -1,9 +1,9 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,8 +20,6 @@ import java.util.List;
 public class FilmController {
 
     private final FilmService filmService;
-    @Value("${filmorate.popular-films.default-count:10}")
-    private int defaultPopularFilmsCount;
 
     @GetMapping
     public ResponseEntity<Collection<Film>> handleFindAll() {
@@ -90,13 +88,13 @@ public class FilmController {
     }
 
     @GetMapping("/popular")
-    public ResponseEntity<List<Film>> handlePopularFilms(@RequestParam(required = false) Integer count) {
+    public ResponseEntity<List<Film>> handlePopularFilms(
+            @RequestParam(defaultValue = "10") @Positive Integer count) {
         log.debug("Request received: GET /films/popular - retrieving popular films");
 
-        int actualCount = count != null ? count : defaultPopularFilmsCount;
-        List<Film> popularFilms = filmService.getPopularFilms(actualCount);
+        List<Film> popularFilms = filmService.getPopularFilms(count);
 
-        log.info("Retrieved {} popular films (count={})", popularFilms.size(), actualCount);
+        log.info("Retrieved {} popular films (count={})", popularFilms.size(), count);
 
         return new ResponseEntity<>(popularFilms, HttpStatus.OK);
     }

@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 /**
  * User.
@@ -20,15 +21,13 @@ public class User {
     @NotBlank
     @Email
     private String email;
-
     @NotNull
     @NotBlank
     @Pattern(regexp = "^\\S+$")
     private String login;
-
     private String name;
-
     @PastOrPresent
     private LocalDate birthday;
+    private Set<Long> friendsIds;
 
 }

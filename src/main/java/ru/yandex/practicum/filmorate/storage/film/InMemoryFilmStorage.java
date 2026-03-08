@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.storage.film;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.*;
@@ -13,7 +14,6 @@ import java.util.*;
 public class InMemoryFilmStorage implements FilmStorage {
 
     private final Map<Long, Film> films;
-    private final Map<Long, Set<Long>> likedUsersFilms;
 
     @Override
     public Collection<Film> getAll() {
@@ -49,28 +49,53 @@ public class InMemoryFilmStorage implements FilmStorage {
 
     @Override
     public void removeLike(long filmId, long userId) {
-        Set<Long> likes = likedUsersFilms.get(filmId);
+        Film film = films.get(filmId);
+        if (film == null) {
+            log.warn("Film with ID {} not found, cannot remove like from user {}", filmId, userId);
+            return;
+        }
+
+        Set<Long> likes = film.getLikedUsersFilms();
         if (likes != null) {
             likes.remove(userId);
-            if (likes.isEmpty()) {
-                likedUsersFilms.remove(filmId);
-            }
         }
     }
 
     @Override
     public Set<Long> getLikes(Long id) {
-        return likedUsersFilms.getOrDefault(id, new HashSet<>());
+        Film film = films.get(id);
+        if (film == null) {
+            return Collections.emptySet();
+        }
+
+        Set<Long> likes = film.getLikedUsersFilms();
+        return likes != null ? likes : Collections.emptySet();
     }
 
     @Override
     public void addLike(long filmId, long userId) {
-        likedUsersFilms.computeIfAbsent(filmId, k -> new HashSet<>()).add(userId);
+        Film film = films.get(filmId);
+
+        if (film == null) {
+            throw new NotFoundException("Film with ID " + filmId + " not found");
+        }
+
+        Set<Long> likes = film.getLikedUsersFilms();
+        if (likes == null) {
+            likes = new HashSet<>();
+            film.setLikedUsersFilms(likes);
+        }
+        likes.add(userId);
     }
 
     @Override
     public boolean isLikeExists(long filmId, long userId) {
-        Set<Long> likes = likedUsersFilms.get(filmId);
+        Film film = films.get(filmId);
+        if (film == null) {
+            return false;
+        }
+
+        Set<Long> likes = film.getLikedUsersFilms();
         return likes != null && likes.contains(userId);
     }
 

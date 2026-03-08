@@ -74,7 +74,7 @@ public class UserService {
         log.debug("Attempting to add friend relationship. User ID: {}, Friend ID: {}", userId, friendId);
 
         if (areFriends(userId, friendId)) {
-            log.info("Friendship already exists between user {} and user {}", userId, friendId);
+            log.warn("Friendship already exists between user {} and user {}", userId, friendId);
             return;
         }
 
@@ -89,7 +89,7 @@ public class UserService {
 
         List<User> friends = userStorage.getUserFriends(userId);
 
-        log.trace("Retrieved {} friends for user ID: {}", friends.size(), userId);
+        log.debug("Retrieved {} friends for user ID: {}", friends.size(), userId);
         return friends;
     }
 
@@ -128,7 +128,7 @@ public class UserService {
 
     private void checkUsersCanInteract(long userId, long otherUserId) {
         if (userId == otherUserId) {
-            log.info("User {} attempted to interact with themselves", userId);
+            log.error("User {} attempted to interact with themselves", userId);
             throw new ValidationException(SELF_INTERACTION_MESSAGE);
         }
         requireValidUser(userId);

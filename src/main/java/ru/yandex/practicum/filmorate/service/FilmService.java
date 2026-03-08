@@ -69,7 +69,7 @@ public class FilmService {
         log.debug("Adding like. Film: {}, User: {}", filmId, userId);
 
         if (isLikeExists(filmId, userId)) {
-            log.warn("User {} already liked film {}", userId, filmId);
+            log.error("User {} already liked film {}", userId, filmId);
             throw new ValidationException("User has already liked this film");
         }
 
@@ -84,7 +84,7 @@ public class FilmService {
         log.debug("Removing like. Film: {}, User: {}", filmId, userId);
 
         if (!isLikeExists(filmId, userId)) {
-            log.warn("Cannot remove non-existent like. Film: {}, User: {}", filmId, userId);
+            log.error("Cannot remove non-existent like. Film: {}, User: {}", filmId, userId);
             throw new ValidationException("User hasn't liked this film");
         }
 
@@ -117,10 +117,6 @@ public class FilmService {
 
     public List<Film> getPopularFilms(long count) {
         log.debug("Getting top {} popular films", count);
-
-        if (count <= 0) {
-            throw new ValidationException("Count must be positive");
-        }
 
         List<Film> allFilms = new ArrayList<>(filmStorage.getAll());
 
