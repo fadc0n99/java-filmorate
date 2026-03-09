@@ -9,6 +9,7 @@ import lombok.EqualsAndHashCode;
 import org.hibernate.validator.constraints.Length;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 /**
  * Film.
@@ -18,17 +19,14 @@ import java.time.LocalDate;
 @Builder(toBuilder = true)
 public class Film {
     private Long id;
-
     @NotNull
     @NotBlank
     private String name;
-
     @Length(max = 200)
     private String description;
-
     @NotNull
     private LocalDate releaseDate;
-
     @Positive
     private Integer duration;
+    private Set<Long> likedUsersFilms;
 }
