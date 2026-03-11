@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.storage.film;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.dto.GenreId;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 
@@ -16,8 +17,8 @@ public class InMemoryFilmStorage implements FilmStorage {
     private final Map<Long, Film> films;
 
     @Override
-    public Collection<Film> getAll() {
-        return films.values();
+    public List<Film> findAll() {
+        return films.values().stream().toList();
     }
 
     @Override
@@ -38,8 +39,8 @@ public class InMemoryFilmStorage implements FilmStorage {
     }
 
     @Override
-    public Film getFilmById(long id) {
-        return films.get(id);
+    public Optional<Film> findFilmById(long id) {
+        return Optional.ofNullable(films.get(id));
     }
 
     @Override
@@ -70,6 +71,24 @@ public class InMemoryFilmStorage implements FilmStorage {
 
         Set<Long> likes = film.getLikedUsersFilms();
         return likes != null ? likes : Collections.emptySet();
+    }
+
+    @Override
+    public boolean isMpaExist(Long mpaId) {
+        return true;
+    }
+
+    @Override
+    public boolean isGenresExist(List<GenreId> genresId) {
+        return true;
+    }
+
+    @Override
+    public List<Film> getPopularFilms(long count) {
+        return films.values().stream()
+                .sorted(Comparator.comparingInt((Film film) -> getLikes(film.getId()).size()).reversed())
+                .limit(count)
+                .toList();
     }
 
     @Override

@@ -1,0 +1,67 @@
+-- Таблица с пользователями
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    login VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    birthday DATE NOT NULL,
+    created_at TIMESTAMP
+);
+
+-- Таблица с возрастными рейтингами
+CREATE TABLE IF NOT EXISTS mpa_ratings (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(5) UNIQUE NOT NULL,
+    name VARCHAR(50) NOT NULL,
+    description VARCHAR(200)
+);
+
+-- Таблица с фильмами
+CREATE TABLE IF NOT EXISTS films (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description VARCHAR(200),
+    release_date DATE NOT NULL,
+    duration INTEGER NOT NULL CHECK (duration > 0),
+    mpa_rating_id BIGINT NOT NULL,
+    created_at TIMESTAMP,
+    FOREIGN KEY (mpa_rating_id) REFERENCES mpa_ratings(id) ON DELETE RESTRICT
+);
+
+-- Таблица с жанрами
+CREATE TABLE IF NOT EXISTS genres (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL
+);
+
+-- Таблица для связи фильма с жанрами
+CREATE TABLE IF NOT EXISTS film_genres (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    film_id BIGINT NOT NULL,
+    genre_id INTEGER NOT NULL,
+    FOREIGN KEY (film_id) REFERENCES films(id) ON DELETE CASCADE,
+    FOREIGN KEY (genre_id) REFERENCES genres(id) ON DELETE RESTRICT
+);
+
+-- Таблица лайков фильмов
+CREATE TABLE IF NOT EXISTS film_likes (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    film_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    liked_at TIMESTAMP,
+    CONSTRAINT unique_film_user UNIQUE (film_id, user_id),
+    FOREIGN KEY (film_id) REFERENCES films(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Таблица дружбы
+CREATE TABLE IF NOT EXISTS friendships (
+    friendship_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    friend_id BIGINT NOT NULL,
+    created_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (friend_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT unique_friendship UNIQUE (user_id, friend_id),
+    CONSTRAINT different_users CHECK (user_id != friend_id)
+);

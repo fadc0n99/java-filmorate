@@ -1,15 +1,17 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.dto.CreateUserDto;
+import ru.yandex.practicum.filmorate.dto.UpdateUserDto;
+import ru.yandex.practicum.filmorate.dto.UserDto;
 import ru.yandex.practicum.filmorate.service.UserService;
 
-import java.util.Collection;
 import java.util.List;
 
 @RestController
@@ -21,10 +23,10 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    public ResponseEntity<Collection<User>> handleFindAll() {
+    public ResponseEntity<List<UserDto>> handleFindAll() {
         log.debug("Request received: GET /users - retrieving all users");
 
-        Collection<User> users = userService.findAllUsers();
+        List<UserDto> users = userService.findAllUsers();
 
         log.info("Retrieved {} users successfully", users.size());
 
@@ -32,41 +34,40 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<User> handleCreateUser(@Valid @RequestBody User newUser) {
+    public ResponseEntity<UserDto> handleCreateUser(@Valid @RequestBody CreateUserDto newUser) {
         log.debug("Request received: POST /users - creating new user: {}", newUser);
 
-        User createdUser = userService.createUser(newUser);
+        UserDto createdUser = userService.createUser(newUser);
 
         log.info("User created successfully. ID: {}, Login: {}", createdUser.getId(), createdUser.getLogin());
         return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
     }
 
     @PutMapping
-    public ResponseEntity<User> handleUpdateUser(@Valid @RequestBody User newUser) {
-        log.debug("Request received: PUT /users - updating user. ID: {}, Login: {}",
-                newUser.getId(), newUser.getLogin());
+    public ResponseEntity<UserDto> handleUpdateUser(@Valid @RequestBody UpdateUserDto updateUserDto) {
+        log.debug("Request received: PUT /users - updating user: {}", updateUserDto);
 
-        User updatedUser = userService.updateUser(newUser);
+        UserDto updatedUser = userService.updateUser(updateUserDto);
 
         log.info("User updated successfully. ID: {}, Login: {}", updatedUser.getId(), updatedUser.getLogin());
         return new ResponseEntity<>(updatedUser, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> handleGetUserById(@PathVariable long id) {
+    public ResponseEntity<UserDto> handleGetUserById(@PathVariable @Positive long id) {
         log.debug("Request received: GET /users/{} - retrieving user by ID", id);
 
-        User user = userService.getUser(id);
+        UserDto user = userService.getUser(id);
 
         log.info("User retrieved successfully. ID: {}, Login: {}", user.getId(), user.getLogin());
         return new ResponseEntity<>(user, HttpStatus.OK);
     }
 
     @GetMapping("/{id}/friends")
-    public ResponseEntity<List<User>> handleGetUserFriends(@PathVariable long id) {
+    public ResponseEntity<List<UserDto>> handleGetUserFriends(@PathVariable long id) {
         log.debug("Request received: GET /users/{}/friends - retrieving friends for user", id);
 
-        List<User> friends = userService.getUserFriends(id);
+        List<UserDto> friends = userService.getUserFriends(id);
 
         log.info("Retrieved {} friends for user ID: {}", friends.size(), id);
         return ResponseEntity.ok(friends);
@@ -93,10 +94,10 @@ public class UserController {
     }
 
     @GetMapping("/{id}/friends/common/{otherId}")
-    public ResponseEntity<List<User>> handleCommonFriends(@PathVariable long id, @PathVariable long otherId) {
+    public ResponseEntity<List<UserDto>> handleCommonFriends(@PathVariable long id, @PathVariable long otherId) {
         log.debug("Request received: GET /users/{}/friends/common/{} - finding common friends", id, otherId);
 
-        List<User> commonFriends = userService.getCommonFriends(id, otherId);
+        List<UserDto> commonFriends = userService.getCommonFriends(id, otherId);
 
         log.info("Found {} common friends between user {} and user {}", commonFriends.size(), id, otherId);
         return ResponseEntity.ok(commonFriends);

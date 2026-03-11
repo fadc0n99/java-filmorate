@@ -1,38 +1,53 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.dto.CreateUserDto;
+import ru.yandex.practicum.filmorate.dto.UpdateUserDto;
+import ru.yandex.practicum.filmorate.dto.UserDto;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
+import ru.yandex.practicum.filmorate.mapper.UserMapper;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class UserService {
 
     private final UserStorage userStorage;
 
+    @Autowired
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage) {
+        this.userStorage = userStorage;
+    }
+
     private static final String USER_NOT_FOUND_MESSAGE = "User with ID %d not found";
     private static final String INVALID_USER_ID_MESSAGE = "Invalid user ID: must be greater than 0";
     private static final String SELF_INTERACTION_MESSAGE = "Users cannot interact with themselves";
 
-    public Collection<User> findAllUsers() {
+    public List<UserDto> findAllUsers() {
         log.debug("Retrieving all users from storage");
 
-        Collection<User> users = userStorage.getAll();
+        List<User> users = userStorage.findAll();
         log.debug("Retrieved {} users", users.size());
 
-        return users;
+        return users
+                .stream()
+                .map(UserMapper::mapToUserDto)
+                .collect(Collectors.toList());
     }
 
-    public User createUser(User newUser) {
+    public UserDto createUser(CreateUserDto requestUserDto) {
+        User newUser = UserMapper.mapToUser(requestUserDto);
+
         log.debug("Starting user creation: {}", newUser);
+
 
         // Если имя не указано, то используем логин как имя
         if (newUser.getName() == null) {
@@ -42,30 +57,31 @@ public class UserService {
         }
 
         User createdUser = userStorage.save(newUser);
-        log.info("User creation completed. ID: {}, Login: {}", createdUser.getId(), createdUser.getLogin());
-        return createdUser;
+        return UserMapper.mapToUserDto(createdUser);
     }
 
-    public User updateUser(User newUser) {
-        requireValidUser(newUser.getId());
+    public UserDto updateUser(UpdateUserDto updateUserDto) {
+        log.debug("Starting update user. ID: {}, Login: {}",
+                updateUserDto.getId(), updateUserDto.getLogin());
 
-        log.debug("Starting update user. ID: {}, Login: {}", newUser.getId(), newUser.getLogin());
+        User updatedUser = userStorage.getUserById(updateUserDto.getId())
+                .map(user -> UserMapper.updateUserFields(user, updateUserDto))
+                .orElseThrow(
+                        () -> new NotFoundException(
+                                String.format(USER_NOT_FOUND_MESSAGE, updateUserDto.getId())
+                        )
+                );
 
-        User updatedUser = userStorage.update(newUser);
-
-        log.info("User update completed. ID: {}, Login: {}", updatedUser.getId(), updatedUser.getLogin());
-
-        return updatedUser;
+        updatedUser = userStorage.update(updatedUser);
+        return UserMapper.mapToUserDto(updatedUser);
     }
 
-    public User getUser(long userId) {
-        requireValidUser(userId);
-
+    public UserDto getUser(long userId) {
         log.debug("Retrieving user by ID: {}", userId);
-        User user = userStorage.getUserById(userId);
-        log.trace("Retrieved film details: {}", user);
 
-        return user;
+        return userStorage.getUserById(userId)
+                .map(UserMapper::mapToUserDto)
+                .orElseThrow(() -> new NotFoundException(String.format(USER_NOT_FOUND_MESSAGE, userId)));
     }
 
     public void addFriend(long userId, long friendId) {
@@ -82,15 +98,14 @@ public class UserService {
         log.info("Friendship added between user {} and user {}", userId, friendId);
     }
 
-    public List<User> getUserFriends(long userId) {
+    public List<UserDto> getUserFriends(long userId) {
         requireValidUser(userId);
 
         log.debug("Retrieving friends for user ID: {}", userId);
 
-        List<User> friends = userStorage.getUserFriends(userId);
-
-        log.debug("Retrieved {} friends for user ID: {}", friends.size(), userId);
-        return friends;
+        return userStorage.getUserFriends(userId).stream()
+                .map(UserMapper::mapToUserDto)
+                .collect(Collectors.toList());
     }
 
     public void removeFriend(long userId, long friendId) {
@@ -106,7 +121,7 @@ public class UserService {
         }
     }
 
-    public List<User> getCommonFriends(long userId, long otherUserId) {
+    public List<UserDto> getCommonFriends(long userId, long otherUserId) {
         checkUsersCanInteract(userId, otherUserId);
 
         log.debug("Finding common friends between user {} and user {}", userId, otherUserId);
@@ -115,7 +130,9 @@ public class UserService {
 
         log.debug("Found {} common friends", commonFriends.size());
 
-        return commonFriends;
+        return commonFriends.stream()
+                .map(UserMapper::mapToUserDto)
+                .collect(Collectors.toList());
     }
 
     private boolean areFriends(long userId, long friendId) {

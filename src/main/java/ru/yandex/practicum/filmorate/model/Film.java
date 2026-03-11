@@ -1,14 +1,13 @@
 package ru.yandex.practicum.filmorate.model;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.hibernate.validator.constraints.Length;
+import ru.yandex.practicum.filmorate.dto.GenreId;
+import ru.yandex.practicum.filmorate.dto.MpaId;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -19,14 +18,11 @@ import java.util.Set;
 @Builder(toBuilder = true)
 public class Film {
     private Long id;
-    @NotNull
-    @NotBlank
     private String name;
-    @Length(max = 200)
     private String description;
-    @NotNull
     private LocalDate releaseDate;
-    @Positive
     private Integer duration;
+    private MpaId mpaId;
+    private List<GenreId> genresId;
     private Set<Long> likedUsersFilms;
 }

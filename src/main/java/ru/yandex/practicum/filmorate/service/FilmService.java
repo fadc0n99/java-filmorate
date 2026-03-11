@@ -1,26 +1,34 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.dto.CreateFilmDto;
+import ru.yandex.practicum.filmorate.dto.FilmDto;
+import ru.yandex.practicum.filmorate.dto.UpdateFilmDto;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
+import ru.yandex.practicum.filmorate.mapper.FilmMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class FilmService {
 
     private final FilmStorage filmStorage;
     private final UserService userService;
+
+    @Autowired
+    public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage, UserService userService) {
+        this.filmStorage = filmStorage;
+        this.userService = userService;
+    }
 
     private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
     private static final String ERROR_INVALID_ID_MESSAGE = "Invalid film ID: must be greater than 0";
@@ -28,38 +36,65 @@ public class FilmService {
     private static final String ERROR_RELEASE_DATE_MESSAGE =
             String.format("Release date must be after %s", MIN_RELEASE_DATE);
 
-    public Collection<Film> findAllFilms() {
+    public List<FilmDto> findAllFilms() {
         log.debug("Retrieving all films from storage");
 
-        return filmStorage.getAll();
+        return filmStorage.findAll()
+                .stream()
+                .map(FilmMapper::mapToFilmDto)
+                .collect(Collectors.toList());
     }
 
-    public Film createFilm(Film newFilm) {
-        validateReleaseDate(newFilm);
+    public FilmDto createFilm(CreateFilmDto createFilmDto) {
+        Film film = FilmMapper.mapToFilm(createFilmDto);
 
-        return filmStorage.save(newFilm);
+        validateReleaseDate(film);
+
+        if (film.getMpaId() != null && !filmStorage.isMpaExist(film.getMpaId().getId())) {
+            throw new NotFoundException("MPA rating with ID " + film.getMpaId().getId() + " not found");
+        }
+        if (film.getGenresId() != null && !filmStorage.isGenresExist(film.getGenresId())) {
+            throw new NotFoundException("One or more genres not found");
+        }
+
+        log.info("film: {}", film);
+
+        film = filmStorage.save(film);
+
+        return FilmMapper.mapToFilmDto(film);
     }
 
-    public Film updateFilm(Film newFilm) {
-        requireValidFilm(newFilm.getId());
-        validateReleaseDate(newFilm);
+    public FilmDto updateFilm(UpdateFilmDto updateFilmDto) {
+        requireValidFilm(updateFilmDto.getId());
 
-        log.debug("Starting update film. ID: {}, Name: {}", newFilm.getId(), newFilm.getName());
+        log.debug("Starting update film. ID: {}, Name: {}", updateFilmDto.getId(), updateFilmDto.getName());
 
-        Film updatedFilm = filmStorage.update(newFilm);
-        log.debug("Film update completed. ID: {}, Name: {}", updatedFilm.getId(), updatedFilm.getName());
+        Film updatedFilm = filmStorage.findFilmById(updateFilmDto.getId())
+                .map(film -> FilmMapper.updateFilmFields(film, updateFilmDto))
+                .orElseThrow(
+                        () -> new NotFoundException(
+                                String.format(ERROR_FILM_NOT_FOUND_MESSAGE, updateFilmDto.getId())
+                        )
+                );
 
-        return updatedFilm;
+        validateReleaseDate(updatedFilm);
+        updatedFilm = filmStorage.update(updatedFilm);
+
+        return FilmMapper.mapToFilmDto(updatedFilm);
     }
 
-    public Film getFilm(long id) {
+    public FilmDto getFilm(long id) {
         requireValidFilm(id);
 
         log.debug("Retrieving film by ID: {}", id);
-        Film film = filmStorage.getFilmById(id);
-        log.trace("Retrieved film details: {}", film);
 
-        return film;
+        return filmStorage.findFilmById(id)
+                .map(FilmMapper::mapToFilmDto)
+                .orElseThrow(
+                        () -> new NotFoundException(
+                                String.format(ERROR_FILM_NOT_FOUND_MESSAGE, id)
+                        )
+                );
     }
 
     public void addFilmLike(long filmId, long userId) {
@@ -73,7 +108,6 @@ public class FilmService {
             throw new ValidationException("User has already liked this film");
         }
 
-        log.info("Like added successfully. Film: {}, User: {}", filmId, userId);
         filmStorage.addLike(filmId, userId);
     }
 
@@ -89,7 +123,6 @@ public class FilmService {
         }
 
         filmStorage.removeLike(filmId, userId);
-        log.info("Like removed successfully. Film: {}, User: {}", filmId, userId);
     }
 
     public void requireValidFilm(long filmId) {
@@ -115,14 +148,12 @@ public class FilmService {
         return filmStorage.isLikeExists(filmId, userId);
     }
 
-    public List<Film> getPopularFilms(long count) {
+    public List<FilmDto> getPopularFilms(long count) {
         log.debug("Getting top {} popular films", count);
 
-        List<Film> allFilms = new ArrayList<>(filmStorage.getAll());
-
-        return allFilms.stream()
-                .sorted(Comparator.comparingInt((Film film) -> filmStorage.getLikes(film.getId()).size()).reversed())
-                .limit(count)
+        return filmStorage.getPopularFilms(count)
+                .stream()
+                .map(FilmMapper::mapToFilmDto)
                 .toList();
     }
 }
