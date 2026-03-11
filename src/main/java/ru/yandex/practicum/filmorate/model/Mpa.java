@@ -8,8 +8,7 @@ import lombok.EqualsAndHashCode;
 @Builder
 @EqualsAndHashCode(of = {"id"})
 public class Mpa {
-    private Integer id;
-    private String code;
+    private Long id;
     private String name;
     private String description;
 }

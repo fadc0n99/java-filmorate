@@ -1,6 +1,6 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
-import ru.yandex.practicum.filmorate.dto.GenreId;
+import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.List;
@@ -31,7 +31,7 @@ public interface FilmStorage {
 
     boolean isMpaExist(Long mpaId);
 
-    boolean isGenresExist(List<GenreId> genresId);
+    boolean isGenresExist(List<GenreRequestDto> genresId);
 
     List<Film> getPopularFilms(long count);
 }

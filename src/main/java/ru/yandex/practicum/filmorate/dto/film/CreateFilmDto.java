@@ -1,4 +1,4 @@
-package ru.yandex.practicum.filmorate.dto;
+package ru.yandex.practicum.filmorate.dto.film;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Positive;
 import lombok.Builder;
 import lombok.Data;
 import org.hibernate.validator.constraints.Length;
+import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
+import ru.yandex.practicum.filmorate.dto.mpa.MpaRequestDto;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -28,6 +30,6 @@ public class CreateFilmDto {
     @Positive
     private Integer duration;
 
-    private MpaId mpa;
-    private List<GenreId> genres;
+    private MpaRequestDto mpa;
+    private List<GenreRequestDto> genres;
 }

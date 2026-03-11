@@ -1,4 +1,4 @@
-package ru.yandex.practicum.filmorate.dto;
+package ru.yandex.practicum.filmorate.dto.genre;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -8,16 +8,16 @@ import lombok.Data;
 
 @Data
 @Builder
-public class MpaId {
+public class GenreRequestDto {
     @Positive
     private Long id;
 
     @JsonCreator
-    public MpaId(@JsonProperty("id") Long id) {
+    public GenreRequestDto(@JsonProperty("id") Long id) {
         this.id = id;
     }
 
-    public static MpaId of(long id) {
-        return MpaId.builder().id(id).build();
+    public static GenreRequestDto of(long id) {
+        return GenreRequestDto.builder().id(id).build();
     }
 }

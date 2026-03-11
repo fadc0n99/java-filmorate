@@ -7,9 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.dto.CreateFilmDto;
-import ru.yandex.practicum.filmorate.dto.FilmDto;
-import ru.yandex.practicum.filmorate.dto.UpdateFilmDto;
+import ru.yandex.practicum.filmorate.dto.film.CreateFilmDto;
+import ru.yandex.practicum.filmorate.dto.film.FilmDto;
+import ru.yandex.practicum.filmorate.dto.film.UpdateFilmDto;
 import ru.yandex.practicum.filmorate.service.FilmService;
 
 import java.util.List;
@@ -95,7 +95,7 @@ public class FilmController {
 
         List<FilmDto> popularFilms = filmService.getPopularFilms(count);
 
-        log.info("Retrieved {} popular films (count={})", popularFilms.size(), count);
+        log.info("Retrieved {} popular films (limit={})", popularFilms.size(), count);
 
         return new ResponseEntity<>(popularFilms, HttpStatus.OK);
     }

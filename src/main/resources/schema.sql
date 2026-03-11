@@ -11,8 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Таблица с возрастными рейтингами
 CREATE TABLE IF NOT EXISTS mpa_ratings (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    code VARCHAR(5) UNIQUE NOT NULL,
-    name VARCHAR(50) NOT NULL,
+    name VARCHAR(5) UNIQUE NOT NULL,
     description VARCHAR(200)
 );
 

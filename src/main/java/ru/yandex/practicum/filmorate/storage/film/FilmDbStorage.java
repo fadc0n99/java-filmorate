@@ -1,12 +1,11 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
-import ru.yandex.practicum.filmorate.dto.GenreId;
+import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 
@@ -94,11 +93,11 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         WHERE film_id = ? AND user_id = ?
         """;
 
-    @Autowired
-    private NamedParameterJdbcTemplate namedJdbcTemplate;
+    private final NamedParameterJdbcTemplate namedJdbcTemplate;
 
-    public FilmDbStorage(JdbcTemplate jdbc, RowMapper<Film> rowMapper) {
+    public FilmDbStorage(JdbcTemplate jdbc, RowMapper<Film> rowMapper, NamedParameterJdbcTemplate namedJdbcTemplate) {
         super(jdbc, rowMapper);
+        this.namedJdbcTemplate = namedJdbcTemplate;
     }
 
     @Override
@@ -115,14 +114,14 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
                 .map(Film::getId)
                 .collect(Collectors.toList());
 
-        Map<Long, List<GenreId>> filmGenresMap = groupGenresByMovies(filmIds);
+        Map<Long, List<GenreRequestDto>> filmGenresMap = groupGenresByMovies(filmIds);
         films.forEach(film -> {
-            List<GenreId> genres = filmGenresMap.getOrDefault(film.getId(), Collections.emptyList());
+            List<GenreRequestDto> genres = filmGenresMap.getOrDefault(film.getId(), Collections.emptyList());
             film.setGenresId(genres);
         });
     }
 
-    private Map<Long, List<GenreId>> groupGenresByMovies(List<Long> filmIds) {
+    private Map<Long, List<GenreRequestDto>> groupGenresByMovies(List<Long> filmIds) {
         if (filmIds.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -135,7 +134,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
                 .collect(Collectors.groupingBy(
                         row -> ((Number) row.get("film_id")).longValue(),
                         Collectors.mapping(
-                                row -> GenreId.of(((Number) row.get("genre_id")).longValue()),
+                                row -> GenreRequestDto.of(((Number) row.get("genre_id")).longValue()),
                                 Collectors.toList()
                         )
                 ));
@@ -149,19 +148,18 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
                 newFilm.getDescription(),
                 newFilm.getReleaseDate(),
                 newFilm.getDuration(),
-                newFilm.getMpaId().getId(),
+                newFilm.getMpaRequestDto().getId(),
                 LocalDateTime.now()
         );
         newFilm.setId(id);
 
-        List<GenreId> uniqueGenres = newFilm.getGenresId().stream()
-                .distinct()
-                .toList();
+        Set<GenreRequestDto> uniqueGenres = new HashSet<>(newFilm.getGenresId());
 
-        for (GenreId genreId : uniqueGenres) {
+        for (GenreRequestDto genreId : uniqueGenres) {
             update(INSERT_FILM_GENRES_QUERY, id, genreId.getId());
         }
 
+        newFilm.setGenresId(new ArrayList<>(uniqueGenres));
         return newFilm;
     }
 
@@ -173,7 +171,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
                 newFilm.getDescription(),
                 newFilm.getReleaseDate(),
                 newFilm.getDuration(),
-                newFilm.getMpaId().getId(),
+                newFilm.getMpaRequestDto().getId(),
                 newFilm.getId()
         );
 
@@ -186,7 +184,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     private void updateGenres(Film newFilm) {
         Set<Long> currentGenreIds = new HashSet<>(getCurrentGenresIds(newFilm.getId()));
         Set<Long> newGenreIds = newFilm.getGenresId().stream()
-                .map(GenreId::getId)
+                .map(GenreRequestDto::getId)
                 .collect(Collectors.toSet());
 
         if (currentGenreIds.equals(newGenreIds)) {
@@ -255,9 +253,9 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     }
 
     @Override
-    public boolean isGenresExist(List<GenreId> genresId) {
+    public boolean isGenresExist(List<GenreRequestDto> genresId) {
         Set<Long> genreIds = genresId.stream()
-                .map(GenreId::getId)
+                .map(GenreRequestDto::getId)
                 .collect(Collectors.toSet());
 
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -265,7 +263,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
         Integer genresCount = namedJdbcTemplate.queryForObject(FIND_GENRES_BY_ID, params, Integer.class);
 
-        return genresCount != null && genresCount == genresId.size();
+        return genresCount != null && genresCount == genreIds.size();
     }
 
     @Override

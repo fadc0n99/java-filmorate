@@ -1,7 +1,9 @@
-package ru.yandex.practicum.filmorate.dto;
+package ru.yandex.practicum.filmorate.dto.film;
 
 import lombok.Builder;
 import lombok.Data;
+import ru.yandex.practicum.filmorate.dto.mpa.MpaDto;
+import ru.yandex.practicum.filmorate.model.Genre;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -14,6 +16,6 @@ public class FilmDto {
     private String description;
     private LocalDate releaseDate;
     private Integer duration;
-    private MpaId mpa;
-    private List<GenreId> genres;
+    private MpaDto mpa;
+    private List<Genre> genres;
 }

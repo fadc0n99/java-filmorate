@@ -4,9 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.dto.CreateUserDto;
-import ru.yandex.practicum.filmorate.dto.UpdateUserDto;
-import ru.yandex.practicum.filmorate.dto.UserDto;
+import ru.yandex.practicum.filmorate.dto.user.CreateUserDto;
+import ru.yandex.practicum.filmorate.dto.user.UpdateUserDto;
+import ru.yandex.practicum.filmorate.dto.user.UserDto;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.mapper.UserMapper;
@@ -35,7 +35,6 @@ public class UserService {
         log.debug("Retrieving all users from storage");
 
         List<User> users = userStorage.findAll();
-        log.debug("Retrieved {} users", users.size());
 
         return users
                 .stream()
@@ -127,8 +126,6 @@ public class UserService {
         log.debug("Finding common friends between user {} and user {}", userId, otherUserId);
 
         List<User> commonFriends = userStorage.getUsersCommonFriends(userId, otherUserId);
-
-        log.debug("Found {} common friends", commonFriends.size());
 
         return commonFriends.stream()
                 .map(UserMapper::mapToUserDto)

@@ -1,7 +1,9 @@
-package ru.yandex.practicum.filmorate.dto;
+package ru.yandex.practicum.filmorate.dto.film;
 
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
+import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
+import ru.yandex.practicum.filmorate.dto.mpa.MpaRequestDto;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -14,8 +16,8 @@ public class UpdateFilmDto {
     private String description;
     private LocalDate releaseDate;
     private Integer duration;
-    private MpaId mpa;
-    private List<GenreId> genres;
+    private MpaRequestDto mpa;
+    private List<GenreRequestDto> genres;
 
     public boolean hasName() {
         return name != null && !name.isBlank();

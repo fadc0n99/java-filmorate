@@ -7,9 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.dto.CreateUserDto;
-import ru.yandex.practicum.filmorate.dto.UpdateUserDto;
-import ru.yandex.practicum.filmorate.dto.UserDto;
+import ru.yandex.practicum.filmorate.dto.user.CreateUserDto;
+import ru.yandex.practicum.filmorate.dto.user.UpdateUserDto;
+import ru.yandex.practicum.filmorate.dto.user.UserDto;
 import ru.yandex.practicum.filmorate.service.UserService;
 
 import java.util.List;
@@ -99,7 +99,7 @@ public class UserController {
 
         List<UserDto> commonFriends = userService.getCommonFriends(id, otherId);
 
-        log.info("Found {} common friends between user {} and user {}", commonFriends.size(), id, otherId);
+        log.info("Found {} common friends", commonFriends.size());
         return ResponseEntity.ok(commonFriends);
     }
 }

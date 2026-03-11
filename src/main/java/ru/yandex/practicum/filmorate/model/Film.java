@@ -3,8 +3,8 @@ package ru.yandex.practicum.filmorate.model;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import ru.yandex.practicum.filmorate.dto.GenreId;
-import ru.yandex.practicum.filmorate.dto.MpaId;
+import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
+import ru.yandex.practicum.filmorate.dto.mpa.MpaRequestDto;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -22,7 +22,7 @@ public class Film {
     private String description;
     private LocalDate releaseDate;
     private Integer duration;
-    private MpaId mpaId;
-    private List<GenreId> genresId;
+    private MpaRequestDto mpaRequestDto;
+    private List<GenreRequestDto> genresId;
     private Set<Long> likedUsersFilms;
 }
