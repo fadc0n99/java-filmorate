@@ -118,8 +118,8 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         }
 
         MapSqlParameterSource parameters = new MapSqlParameterSource("filmIds", filmIds);
-        List<Map<String, Object>> genreMappings = namedJdbcTemplate.queryForList
-                (FIND_FILM_GENRES_BY_IDS, parameters);
+
+        List<Map<String, Object>> genreMappings = namedJdbcTemplate.queryForList(FIND_FILM_GENRES_BY_IDS, parameters);
 
         return genreMappings.stream()
                 .collect(Collectors.groupingBy(
