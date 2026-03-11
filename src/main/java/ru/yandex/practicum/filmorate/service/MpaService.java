@@ -38,4 +38,8 @@ public class MpaService {
     public Set<Mpa> findMpaByIds(Set<Long> mpaIds) {
         return new HashSet<>(mpaStorage.findByIdIn(mpaIds));
     }
+
+    public boolean isMpaExist(Long id) {
+        return mpaStorage.isExistById(id);
+    }
 }

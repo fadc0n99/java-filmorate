@@ -3,7 +3,6 @@ package ru.yandex.practicum.filmorate.storage.film;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 
@@ -71,16 +70,6 @@ public class InMemoryFilmStorage implements FilmStorage {
 
         Set<Long> likes = film.getLikedUsersFilms();
         return likes != null ? likes : Collections.emptySet();
-    }
-
-    @Override
-    public boolean isMpaExist(Long mpaId) {
-        return true;
-    }
-
-    @Override
-    public boolean isGenresExist(List<GenreRequestDto> genresId) {
-        return true;
     }
 
     @Override

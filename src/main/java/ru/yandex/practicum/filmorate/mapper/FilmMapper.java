@@ -4,8 +4,8 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import ru.yandex.practicum.filmorate.dto.film.CreateFilmDto;
 import ru.yandex.practicum.filmorate.dto.film.FilmDto;
+import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
 import ru.yandex.practicum.filmorate.dto.mpa.MpaDto;
-import ru.yandex.practicum.filmorate.dto.mpa.MpaRequestDto;
 import ru.yandex.practicum.filmorate.dto.film.UpdateFilmDto;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
@@ -19,22 +19,27 @@ import java.util.Objects;
 public final class FilmMapper {
 
     public static Film mapToFilm(CreateFilmDto requestDto) {
+        List<Long> genreIds = requestDto.getGenres()
+                .stream()
+                .map(GenreRequestDto::getId)
+                .toList();
+
         return Film.builder()
                 .name(requestDto.getName())
                 .description(requestDto.getDescription())
                 .releaseDate(requestDto.getReleaseDate())
                 .duration(requestDto.getDuration())
-                .mpaRequestDto(requestDto.getMpa())
-                .genresId(requestDto.getGenres())
+                .mpaId(requestDto.getMpa().getId())
+                .genresIds(genreIds)
                 .build();
     }
 
     public static FilmDto mapToFilmDto(Film film, Map<Long, Mpa> mpaMap, Map<Long, Genre> genreMap) {
-        Mpa fullMpa = mpaMap.get(film.getMpaRequestDto().getId());
+        Mpa fullMpa = mpaMap.get(film.getMpaId());
         MpaDto mpaDto = MpaMapper.mpaToMpaDto(fullMpa);
 
-        List<Genre> fullGenres = film.getGenresId().stream()
-                .map(genreId -> genreMap.get(genreId.getId()))
+        List<Genre> fullGenres = film.getGenresIds().stream()
+                .map(genreMap::get)
                 .filter(Objects::nonNull)
                 .toList();
 
@@ -50,6 +55,11 @@ public final class FilmMapper {
     }
 
     public static Film updateFilmFields(Film film, UpdateFilmDto dto) {
+        List<Long> genreIds = dto.getGenres()
+                .stream()
+                .map(GenreRequestDto::getId)
+                .toList();
+
         if (dto.hasName()) {
             film.setName(dto.getName());
         }
@@ -67,11 +77,11 @@ public final class FilmMapper {
         }
 
         if (dto.hasMpa()) {
-            film.setMpaRequestDto(MpaRequestDto.of(dto.getMpa().getId()));
+            film.setMpaId(dto.getMpa().getId());
         }
 
-        if (dto.hasGenres()) {
-            film.setGenresId(dto.getGenres());
+        if (!genreIds.isEmpty()) {
+            film.setGenresIds(genreIds);
         }
 
         return film;

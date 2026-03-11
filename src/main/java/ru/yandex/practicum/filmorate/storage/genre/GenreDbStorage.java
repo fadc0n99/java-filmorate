@@ -18,6 +18,7 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
     private static final String FIND_ALL_GENRE = "SELECT * FROM genres";
     private static final String FIND_GENRE_BY_ID = "SELECT * FROM genres WHERE id = ?";
     private static final String FIND_GENRE_BY_IDS = "SELECT * FROM genres WHERE id IN (:ids)";
+    private static final String FIND_GENRES_IDS = "SELECT id FROM genres WHERE id IN (:ids)";
 
     private final NamedParameterJdbcTemplate namedJdbc;
 
@@ -37,10 +38,22 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
     }
 
     @Override
-    public Set<Genre> findByIdIn(Set<Long> genreIds) {
-        MapSqlParameterSource parameters = new MapSqlParameterSource()
-                .addValue("ids", genreIds);
+    public List<Genre> findGenresByIds(List<Long> genreIds) {
+        Set<Long> uniqueIds = new HashSet<>(genreIds);
 
-        return new HashSet<>(namedJdbc.query(FIND_GENRE_BY_IDS, parameters, rowMapper));
+        MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("ids", uniqueIds);
+
+        return namedJdbc.query(FIND_GENRE_BY_IDS, parameters, rowMapper);
+    }
+
+    @Override
+    public List<Long> findGenreIdsByIds(List<Long> genreIds) {
+        Set<Long> uniqueGenreIds = new HashSet<>(genreIds);
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("ids", uniqueGenreIds);
+
+        return namedJdbc.queryForList(FIND_GENRES_IDS, params, Long.class);
     }
 }

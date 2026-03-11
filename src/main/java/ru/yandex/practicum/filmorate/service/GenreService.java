@@ -6,9 +6,7 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +25,18 @@ public class GenreService {
                 .orElseThrow(() -> new NotFoundException(String.format(GENRE_NOT_FOUND_MESSAGE, id)));
     }
 
-    public Set<Genre> findGenresByIds(Set<Long> genreIds) {
-        return new HashSet<>(genreStorage.findByIdIn(genreIds));
+    public List<Genre> findGenresByIds(List<Long> genreIds) {
+        return genreStorage.findGenresByIds(genreIds);
+    }
+
+    public boolean isGenresExist(List<Long> genreIds) {
+        if (genreIds == null || genreIds.isEmpty()) {
+            return true;
+        }
+
+        Set<Long> uniqueIds = new HashSet<>(genreIds);
+        List<Long> foundIds = genreStorage.findGenreIdsByIds(genreIds);
+
+        return foundIds.size() == uniqueIds.size();
     }
 }

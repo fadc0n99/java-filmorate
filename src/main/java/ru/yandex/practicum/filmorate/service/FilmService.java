@@ -76,7 +76,8 @@ public class FilmService {
         requireValidFilm(updateFilmDto.getId());
         validateMpaRating(updateFilmDto.getMpa());
 
-        updateFilmDto.setGenres(processGenres(updateFilmDto.getGenres()));
+        List<GenreRequestDto> processedGenres = processGenres(updateFilmDto.getGenres());
+        updateFilmDto.setGenres(processedGenres);
 
         Film updatedFilm = filmStorage.findFilmById(updateFilmDto.getId())
                 .map(film -> FilmMapper.updateFilmFields(film, updateFilmDto))
@@ -91,6 +92,22 @@ public class FilmService {
         updatedFilm = filmStorage.update(updatedFilm);
 
         return mapToFilmDtos(List.of(updatedFilm)).getFirst();
+    }
+
+    private List<GenreRequestDto> processGenres(List<GenreRequestDto> genres) {
+        if (genres == null || genres.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> requestGenreIds = genres.stream()
+                .map(GenreRequestDto::getId)
+                .toList();
+
+        if (!genreService.isGenresExist(requestGenreIds)) {
+            throw new NotFoundException("One or more genres not found");
+        }
+
+        return genres;
     }
 
     public FilmDto getFilm(long id) {
@@ -110,7 +127,7 @@ public class FilmService {
 
     private Map<Long, Mpa> loadFilmsMpa(List<Film> films) {
         Set<Long> mpaIds = films.stream()
-                .map(film -> film.getMpaRequestDto().getId())
+                .map(Film::getMpaId)
                 .collect(Collectors.toSet());
 
         Set<Mpa> mpas = mpaService.findMpaByIds(mpaIds);
@@ -122,12 +139,11 @@ public class FilmService {
     }
 
     private Map<Long, Genre> loadFilmsGenres(List<Film> films) {
-        Set<Long> genreIds = films.stream()
-                .flatMap(film -> film.getGenresId().stream())
-                .map(GenreRequestDto::getId)
-                .collect(Collectors.toSet());
+        List<Long> genreIds = films.stream()
+                .flatMap(film -> film.getGenresIds().stream())
+                .toList();
 
-        Set<Genre> genres = genreService.findGenresByIds(genreIds);
+        List<Genre> genres = genreService.findGenresByIds(genreIds);
         return genres.stream()
                 .collect(Collectors.toMap(
                         Genre::getId,
@@ -137,10 +153,10 @@ public class FilmService {
 
     private List<FilmDto> mapToFilmDtos(List<Film> films) {
         Map<Long, Genre> genreMap = loadFilmsGenres(films);
-        Map<Long, Mpa> mpaMapDtos = loadFilmsMpa(films);
+        Map<Long, Mpa> mpaMap = loadFilmsMpa(films);
 
         return films.stream()
-                .map(film -> FilmMapper.mapToFilmDto(film, mpaMapDtos, genreMap))
+                .map(film -> FilmMapper.mapToFilmDto(film, mpaMap, genreMap))
                 .toList();
     }
 
@@ -172,15 +188,6 @@ public class FilmService {
         filmStorage.removeLike(filmId, userId);
     }
 
-    public void requireValidFilm(long filmId) {
-        if (filmId <= 0) {
-            throw new ValidationException(ERROR_INVALID_ID_MESSAGE);
-        }
-        if (!isFilmExists(filmId)) {
-            throw new NotFoundException(String.format(ERROR_FILM_NOT_FOUND_MESSAGE, filmId));
-        }
-    }
-
     public boolean isFilmExists(long filmId) {
         return filmStorage.isExistById(filmId);
     }
@@ -202,27 +209,24 @@ public class FilmService {
         return mapToFilmDtos(popularFilms);
     }
 
+    public void requireValidFilm(long filmId) {
+        if (filmId <= 0) {
+            throw new ValidationException(ERROR_INVALID_ID_MESSAGE);
+        }
+        if (!isFilmExists(filmId)) {
+            throw new NotFoundException(String.format(ERROR_FILM_NOT_FOUND_MESSAGE, filmId));
+        }
+    }
+
     private void validateMpaRating(MpaRequestDto mpaRequestDto) {
         if (mpaRequestDto == null) {
             throw new ValidationException("MPA rating is required for film");
         }
 
-        if (!filmStorage.isMpaExist(mpaRequestDto.getId())) {
+        if (!mpaService.isMpaExist(mpaRequestDto.getId())) {
             throw new NotFoundException(
                     String.format("MPA rating with ID %d not found", mpaRequestDto.getId())
             );
         }
-    }
-
-    private List<GenreRequestDto> processGenres(List<GenreRequestDto> genres) {
-        if (genres == null || genres.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        if (!filmStorage.isGenresExist(genres)) {
-            throw new NotFoundException("One or more genres not found");
-        }
-
-        return new ArrayList<>(new HashSet<>(genres));
     }
 }

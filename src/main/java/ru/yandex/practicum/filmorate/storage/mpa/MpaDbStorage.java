@@ -18,6 +18,7 @@ public class MpaDbStorage extends BaseDbStorage<Mpa> implements MpaStorage {
     private static final String FIND_ALL_MPA = "SELECT * FROM mpa_ratings";
     private static final String FIND_MPA_BY_ID = "SELECT * FROM mpa_ratings WHERE id = ?";
     private static final String FIND_MPA_BY_IDS = "SELECT * FROM mpa_ratings WHERE id IN (:ids)";
+    private static final String EXIST_MPA_ID = "SELECT EXISTS(SELECT 1 FROM mpa_ratings WHERE id = ?)";
 
     private final NamedParameterJdbcTemplate namedJdbc;
 
@@ -42,5 +43,10 @@ public class MpaDbStorage extends BaseDbStorage<Mpa> implements MpaStorage {
                 .addValue("ids", mpaIds);
 
         return new HashSet<>(namedJdbc.query(FIND_MPA_BY_IDS, parameters, rowMapper));
+    }
+
+    @Override
+    public boolean isExistById(Long mpaId) {
+        return isExistOne(EXIST_MPA_ID, mpaId);
     }
 }
