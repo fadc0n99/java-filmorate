@@ -202,11 +202,6 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     }
 
     @Override
-    public void clearAll() {
-        // do nothing
-    }
-
-    @Override
     public boolean isExistById(long filmId) {
         return isExistOne(EXISTS_FILM_BY_ID, filmId);
     }

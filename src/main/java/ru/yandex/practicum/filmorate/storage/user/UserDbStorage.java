@@ -126,11 +126,6 @@ public class UserDbStorage extends BaseDbStorage<User> implements UserStorage {
     }
 
     @Override
-    public void clearAll() {
-        // nothing
-    }
-
-    @Override
     public List<User> getUserFriends(long userId) {
         return findMany(FIND_USER_FRIENDS_QUERY, userId);
     }

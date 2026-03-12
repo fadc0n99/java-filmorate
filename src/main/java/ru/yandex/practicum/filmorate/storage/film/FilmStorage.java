@@ -16,8 +16,6 @@ public interface FilmStorage {
 
     Optional<Film> findFilmById(long id);
 
-    void clearAll();
-
     boolean isExistById(long filmId);
 
     void addLike(long filmId, long userId);

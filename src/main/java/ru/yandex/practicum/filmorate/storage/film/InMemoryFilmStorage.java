@@ -107,11 +107,6 @@ public class InMemoryFilmStorage implements FilmStorage {
         return likes != null && likes.contains(userId);
     }
 
-    @Override
-    public void clearAll() {
-        films.clear();
-    }
-
     private Long generateId() {
         long currentId = films.keySet()
                 .stream()

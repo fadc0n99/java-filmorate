@@ -78,11 +78,6 @@ public class InMemoryUserStorage implements UserStorage {
     }
 
     @Override
-    public void clearAll() {
-        users.clear();
-    }
-
-    @Override
     public List<User> getUserFriends(long userId) {
         return Optional.ofNullable(users.get(userId))
                 .map(User::getFriendsIds)
