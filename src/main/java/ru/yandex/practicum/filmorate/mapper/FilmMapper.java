@@ -18,7 +18,7 @@ import java.util.Objects;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class FilmMapper {
 
-    public static Film mapToFilm(CreateFilmDto requestDto) {
+    public static Film toFilm(CreateFilmDto requestDto) {
         List<Long> genreIds = requestDto.getGenres()
                 .stream()
                 .map(GenreRequestDto::getId)
@@ -34,15 +34,7 @@ public final class FilmMapper {
                 .build();
     }
 
-    public static FilmDto mapToFilmDto(Film film, Map<Long, Mpa> mpaMap, Map<Long, Genre> genreMap) {
-        Mpa fullMpa = mpaMap.get(film.getMpaId());
-        MpaDto mpaDto = MpaMapper.mpaToMpaDto(fullMpa);
-
-        List<Genre> fullGenres = film.getGenresIds().stream()
-                .map(genreMap::get)
-                .filter(Objects::nonNull)
-                .toList();
-
+    public static FilmDto toDto(Film film, MpaDto mpaDto, List<Genre> genres) {
         return FilmDto.builder()
                 .id(film.getId())
                 .name(film.getName())
@@ -50,7 +42,7 @@ public final class FilmMapper {
                 .releaseDate(film.getReleaseDate())
                 .duration(film.getDuration())
                 .mpa(mpaDto)
-                .genres(fullGenres)
+                .genres(genres)
                 .build();
     }
 
