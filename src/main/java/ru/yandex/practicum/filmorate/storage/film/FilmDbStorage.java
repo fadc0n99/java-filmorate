@@ -2,15 +2,12 @@ package ru.yandex.practicum.filmorate.storage.film;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Repository("filmDbStorage")
 public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
@@ -40,13 +37,6 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         UPDATE films
         SET name = ?, description = ?, release_date = ?, duration = ?, mpa_rating_id = ?
         WHERE id = ?
-        """;
-
-    private static final String FIND_FILM_GENRES_BY_IDS = """
-        SELECT film_id, genre_id
-        FROM film_genres
-        WHERE film_id IN (:filmIds)
-        ORDER BY id
         """;
 
     private static final String EXISTS_FILM_BY_ID = "SELECT EXISTS(SELECT 1 FROM films WHERE id = ?)";
@@ -84,51 +74,24 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         WHERE film_id = ? AND user_id = ?
         """;
 
-    private final NamedParameterJdbcTemplate namedJdbcTemplate;
-
-    public FilmDbStorage(JdbcTemplate jdbc, RowMapper<Film> rowMapper, NamedParameterJdbcTemplate namedJdbcTemplate) {
+    public FilmDbStorage(JdbcTemplate jdbc, RowMapper<Film> rowMapper) {
         super(jdbc, rowMapper);
-        this.namedJdbcTemplate = namedJdbcTemplate;
     }
 
     @Override
     public List<Film> findAll() {
         List<Film> films = findMany(FIND_ALL_FILMS);
 
-        fillMoviesGenres(films);
+        films.forEach(this::fillMovieGenres);
 
         return films;
     }
 
-    private void fillMoviesGenres(List<Film> films) {
-        List<Long> filmIds = films.stream()
-                .map(Film::getId)
-                .collect(Collectors.toList());
+    private void fillMovieGenres(Film film) {
+        long filmId = film.getId();
+        List<Long> filmGenresIds = getCurrentGenresIds(filmId);
 
-        Map<Long, List<Long>> filmGenresMap = groupGenresByMovies(filmIds);
-        films.forEach(film -> {
-            List<Long> genres = filmGenresMap.getOrDefault(film.getId(), Collections.emptyList());
-            film.setGenresIds(genres);
-        });
-    }
-
-    private Map<Long, List<Long>> groupGenresByMovies(List<Long> filmIds) {
-        if (filmIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        MapSqlParameterSource parameters = new MapSqlParameterSource("filmIds", filmIds);
-
-        List<Map<String, Object>> genreMappings = namedJdbcTemplate.queryForList(FIND_FILM_GENRES_BY_IDS, parameters);
-
-        return genreMappings.stream()
-                .collect(Collectors.groupingBy(
-                        row -> ((Number) row.get("film_id")).longValue(),
-                        Collectors.mapping(
-                                row -> ((Number) row.get("genre_id")).longValue(),
-                                Collectors.toList()
-                        )
-                ));
+        film.setGenresIds(filmGenresIds);
     }
 
     @Override
@@ -162,7 +125,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         );
 
         updateGenres(newFilm);
-        fillMoviesGenres(List.of(newFilm));
+        fillMovieGenres(newFilm);
 
         return newFilm;
     }
@@ -187,7 +150,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     }
 
     private List<Long> getCurrentGenresIds(Long id) {
-        String sql = "SELECT DISTINCT genre_id FROM film_genres WHERE film_id = ?";
+        String sql = "SELECT genre_id FROM film_genres WHERE film_id = ?";
         return jdbc.query(sql, (rs, rowNum) ->
                 rs.getLong("genre_id"), id);
     }
@@ -196,7 +159,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     public Optional<Film> findFilmById(long id) {
         Optional<Film> film = findOne(FIND_FILM_BY_ID, id);
 
-        film.ifPresent(value -> fillMoviesGenres(List.of(value)));
+        film.ifPresent(this::fillMovieGenres);
 
         return film;
     }
@@ -230,7 +193,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     public List<Film> getPopularFilms(long limit) {
         List<Film> popularFilms = findMany(FIND_POPULAR_FILMS, limit);
 
-        fillMoviesGenres(popularFilms);
+        popularFilms.forEach(this::fillMovieGenres);
 
         return popularFilms;
     }
