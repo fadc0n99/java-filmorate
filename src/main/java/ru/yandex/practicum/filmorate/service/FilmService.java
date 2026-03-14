@@ -1,26 +1,44 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.dto.film.CreateFilmDto;
+import ru.yandex.practicum.filmorate.dto.film.FilmDto;
+import ru.yandex.practicum.filmorate.dto.film.UpdateFilmDto;
+import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
+import ru.yandex.practicum.filmorate.dto.mpa.MpaDto;
+import ru.yandex.practicum.filmorate.dto.mpa.MpaRequestDto;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
+import ru.yandex.practicum.filmorate.mapper.FilmMapper;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class FilmService {
 
     private final FilmStorage filmStorage;
     private final UserService userService;
+    private final GenreService genreService;
+    private final MpaService mpaService;
+
+    @Autowired
+    public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
+                       UserService userService,
+                       GenreService genreService,
+                       MpaService mpaService) {
+        this.filmStorage = filmStorage;
+        this.userService = userService;
+        this.mpaService = mpaService;
+        this.genreService = genreService;
+    }
 
     private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
     private static final String ERROR_INVALID_ID_MESSAGE = "Invalid film ID: must be greater than 0";
@@ -28,38 +46,93 @@ public class FilmService {
     private static final String ERROR_RELEASE_DATE_MESSAGE =
             String.format("Release date must be after %s", MIN_RELEASE_DATE);
 
-    public Collection<Film> findAllFilms() {
+    public List<FilmDto> findAllFilms() {
         log.debug("Retrieving all films from storage");
 
-        return filmStorage.getAll();
+        List<Film> films = filmStorage.findAll();
+
+        return mapFilmDtoList(films);
     }
 
-    public Film createFilm(Film newFilm) {
-        validateReleaseDate(newFilm);
+    public FilmDto createFilm(CreateFilmDto createFilmDto) {
+        log.debug("Starting add film: {}", createFilmDto);
 
-        return filmStorage.save(newFilm);
+        validateMpaRating(createFilmDto.getMpa());
+
+        List<GenreRequestDto> processedGenres = processGenres(createFilmDto.getGenres());
+        createFilmDto.setGenres(processedGenres);
+
+        Film film = FilmMapper.toFilm(createFilmDto);
+
+        validateReleaseDate(film);
+
+        film = filmStorage.save(film);
+        return mapToFilmDto(film);
     }
 
-    public Film updateFilm(Film newFilm) {
-        requireValidFilm(newFilm.getId());
-        validateReleaseDate(newFilm);
+    public FilmDto updateFilm(UpdateFilmDto updateFilmDto) {
+        requireValidFilm(updateFilmDto.getId());
+        validateMpaRating(updateFilmDto.getMpa());
 
-        log.debug("Starting update film. ID: {}, Name: {}", newFilm.getId(), newFilm.getName());
+        List<GenreRequestDto> processedGenres = processGenres(updateFilmDto.getGenres());
+        updateFilmDto.setGenres(processedGenres);
 
-        Film updatedFilm = filmStorage.update(newFilm);
-        log.debug("Film update completed. ID: {}, Name: {}", updatedFilm.getId(), updatedFilm.getName());
+        Film updatedFilm = filmStorage.findFilmById(updateFilmDto.getId())
+                .map(film -> FilmMapper.updateFilmFields(film, updateFilmDto))
+                .orElseThrow(
+                        () -> new NotFoundException(
+                                String.format(ERROR_FILM_NOT_FOUND_MESSAGE, updateFilmDto.getId())
+                        )
+                );
 
-        return updatedFilm;
+        validateReleaseDate(updatedFilm);
+
+        updatedFilm = filmStorage.update(updatedFilm);
+
+        return mapToFilmDto(updatedFilm);
     }
 
-    public Film getFilm(long id) {
+    private List<GenreRequestDto> processGenres(List<GenreRequestDto> genres) {
+        if (genres == null || genres.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> requestGenreIds = genres.stream()
+                .map(GenreRequestDto::getId)
+                .toList();
+
+        if (!genreService.isGenresExist(requestGenreIds)) {
+            throw new NotFoundException("One or more genres not found");
+        }
+
+        return genres;
+    }
+
+    public FilmDto getFilm(long id) {
         requireValidFilm(id);
 
         log.debug("Retrieving film by ID: {}", id);
-        Film film = filmStorage.getFilmById(id);
-        log.trace("Retrieved film details: {}", film);
 
-        return film;
+        return filmStorage.findFilmById(id)
+                .map(this::mapToFilmDto)
+                .orElseThrow(
+                        () -> new NotFoundException(
+                                String.format(ERROR_FILM_NOT_FOUND_MESSAGE, id)
+                        )
+                );
+    }
+
+    private FilmDto mapToFilmDto(Film film) {
+        List<Genre> genres = genreService.findGenresByIds(film.getGenresIds());
+        MpaDto mpaDto = mpaService.findMpaById(film.getMpaId());
+
+        return FilmMapper.toDto(film, mpaDto, genres);
+    }
+
+    private List<FilmDto> mapFilmDtoList(List<Film> films) {
+        return films.stream()
+                .map(this::mapToFilmDto)
+                .toList();
     }
 
     public void addFilmLike(long filmId, long userId) {
@@ -73,7 +146,6 @@ public class FilmService {
             throw new ValidationException("User has already liked this film");
         }
 
-        log.info("Like added successfully. Film: {}, User: {}", filmId, userId);
         filmStorage.addLike(filmId, userId);
     }
 
@@ -89,16 +161,6 @@ public class FilmService {
         }
 
         filmStorage.removeLike(filmId, userId);
-        log.info("Like removed successfully. Film: {}, User: {}", filmId, userId);
-    }
-
-    public void requireValidFilm(long filmId) {
-        if (filmId <= 0) {
-            throw new ValidationException(ERROR_INVALID_ID_MESSAGE);
-        }
-        if (!isFilmExists(filmId)) {
-            throw new NotFoundException(String.format(ERROR_FILM_NOT_FOUND_MESSAGE, filmId));
-        }
     }
 
     public boolean isFilmExists(long filmId) {
@@ -115,14 +177,31 @@ public class FilmService {
         return filmStorage.isLikeExists(filmId, userId);
     }
 
-    public List<Film> getPopularFilms(long count) {
+    public List<FilmDto> getPopularFilms(long count) {
         log.debug("Getting top {} popular films", count);
 
-        List<Film> allFilms = new ArrayList<>(filmStorage.getAll());
+        List<Film> popularFilms = filmStorage.getPopularFilms(count);
+        return mapFilmDtoList(popularFilms);
+    }
 
-        return allFilms.stream()
-                .sorted(Comparator.comparingInt((Film film) -> filmStorage.getLikes(film.getId()).size()).reversed())
-                .limit(count)
-                .toList();
+    public void requireValidFilm(long filmId) {
+        if (filmId <= 0) {
+            throw new ValidationException(ERROR_INVALID_ID_MESSAGE);
+        }
+        if (!isFilmExists(filmId)) {
+            throw new NotFoundException(String.format(ERROR_FILM_NOT_FOUND_MESSAGE, filmId));
+        }
+    }
+
+    private void validateMpaRating(MpaRequestDto mpaRequestDto) {
+        if (mpaRequestDto == null) {
+            throw new ValidationException("MPA rating is required for film");
+        }
+
+        if (!mpaService.isMpaExist(mpaRequestDto.getId())) {
+            throw new NotFoundException(
+                    String.format("MPA rating with ID %d not found", mpaRequestDto.getId())
+            );
+        }
     }
 }

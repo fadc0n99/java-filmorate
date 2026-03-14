@@ -7,10 +7,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.dto.film.CreateFilmDto;
+import ru.yandex.practicum.filmorate.dto.film.FilmDto;
+import ru.yandex.practicum.filmorate.dto.film.UpdateFilmDto;
 import ru.yandex.practicum.filmorate.service.FilmService;
 
-import java.util.Collection;
 import java.util.List;
 
 @RestController
@@ -22,44 +23,44 @@ public class FilmController {
     private final FilmService filmService;
 
     @GetMapping
-    public ResponseEntity<Collection<Film>> handleFindAll() {
+    public ResponseEntity<List<FilmDto>> handleFindAll() {
         log.debug("Request received: GET /films - retrieving all films");
 
-        Collection<Film> films = filmService.findAllFilms();
+        List<FilmDto> films = filmService.findAllFilms();
 
         log.info("Retrieved {} films successfully", films.size());
         return new ResponseEntity<>(films, HttpStatus.OK);
     }
 
     @PostMapping
-    public ResponseEntity<Film> handleCreateFilm(@Valid @RequestBody Film newFilm) {
-        log.debug("Request received: POST /films - creating new film: {}", newFilm);
+    public ResponseEntity<FilmDto> handleCreateFilm(@Valid @RequestBody CreateFilmDto createFilmDto) {
+        log.debug("Request received: POST /films - creating new film: {}", createFilmDto);
 
-        Film createdFilm = filmService.createFilm(newFilm);
+        FilmDto createdFilm = filmService.createFilm(createFilmDto);
 
         log.info("Film created successfully. ID: {}, Name: {}", createdFilm.getId(), createdFilm.getName());
         return new ResponseEntity<>(createdFilm, HttpStatus.CREATED);
     }
 
     @PutMapping
-    public ResponseEntity<Film> handleUpdateFilm(@Valid @RequestBody Film newFilm) {
+    public ResponseEntity<FilmDto> handleUpdateFilm(@Valid @RequestBody UpdateFilmDto updateFilmDto) {
         log.debug("Request received: PUT /films - updating film. ID: {}, Name: {}",
-                newFilm.getId(), newFilm.getName());
+                updateFilmDto.getId(), updateFilmDto.getName());
 
-        Film updatedFilm = filmService.updateFilm(newFilm);
+        FilmDto updatedFilm = filmService.updateFilm(updateFilmDto);
 
         log.info("Film updated successfully. ID: {}, Name: {}", updatedFilm.getId(), updatedFilm.getName());
         return new ResponseEntity<>(updatedFilm, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
-    public Film handleGetFilmById(@PathVariable long id) {
+    public ResponseEntity<FilmDto> handleGetFilmById(@PathVariable long id) {
         log.debug("Request received: GET /films/{} - retrieving film by ID", id);
 
-        Film film = filmService.getFilm(id);
+        FilmDto film = filmService.getFilm(id);
 
         log.info("Film retrieved successfully. ID: {}, Name: {}", film.getId(), film.getName());
-        return film;
+        return new ResponseEntity<>(film, HttpStatus.OK);
     }
 
     @PutMapping("/{id}/like/{userId}")
@@ -88,13 +89,13 @@ public class FilmController {
     }
 
     @GetMapping("/popular")
-    public ResponseEntity<List<Film>> handlePopularFilms(
+    public ResponseEntity<List<FilmDto>> handlePopularFilms(
             @RequestParam(defaultValue = "10") @Positive Integer count) {
         log.debug("Request received: GET /films/popular - retrieving popular films");
 
-        List<Film> popularFilms = filmService.getPopularFilms(count);
+        List<FilmDto> popularFilms = filmService.getPopularFilms(count);
 
-        log.info("Retrieved {} popular films (count={})", popularFilms.size(), count);
+        log.info("Retrieved {} popular films (limit={})", popularFilms.size(), count);
 
         return new ResponseEntity<>(popularFilms, HttpStatus.OK);
     }

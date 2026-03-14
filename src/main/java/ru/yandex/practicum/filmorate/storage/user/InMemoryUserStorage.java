@@ -17,8 +17,8 @@ public class InMemoryUserStorage implements UserStorage {
     private final Map<Long, User> users;
 
     @Override
-    public Collection<User> getAll() {
-        return users.values();
+    public List<User> findAll() {
+        return users.values().stream().toList();
     }
 
     @Override
@@ -39,8 +39,8 @@ public class InMemoryUserStorage implements UserStorage {
     }
 
     @Override
-    public User getUserById(long id) {
-        return users.get(id);
+    public Optional<User> getUserById(long id) {
+        return Optional.ofNullable(users.get(id));
     }
 
     @Override
@@ -78,19 +78,14 @@ public class InMemoryUserStorage implements UserStorage {
     }
 
     @Override
-    public void clearAll() {
-        users.clear();
-    }
-
-    @Override
     public List<User> getUserFriends(long userId) {
         return Optional.ofNullable(users.get(userId))
                 .map(User::getFriendsIds)
                 .map(friendIds -> friendIds.stream()
                         .map(this::getUserById)
-                        .filter(Objects::nonNull)
+                        .flatMap(Optional::stream)
                         .collect(Collectors.toList()))
-                .orElse(Collections.emptyList());
+                .orElseGet(Collections::emptyList);
     }
 
     @Override
@@ -118,7 +113,7 @@ public class InMemoryUserStorage implements UserStorage {
         return friendsIds.stream()
                 .filter(otherFriendsIds::contains)
                 .map(this::getUserById)
-                .filter(Objects::nonNull)
+                .flatMap(Optional::stream)
                 .toList();
     }
 
