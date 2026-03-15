@@ -8,10 +8,7 @@ import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 @Repository
 public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage {
@@ -19,6 +16,12 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
     private static final String FIND_GENRE_BY_ID = "SELECT * FROM genres WHERE id = ?";
     private static final String FIND_GENRE_BY_IDS = "SELECT * FROM genres WHERE id IN (:ids)";
     private static final String FIND_GENRES_IDS = "SELECT id FROM genres WHERE id IN (:ids)";
+    private static final String FIND_GENRES_BY_FILM_IDS = """
+            SELECT fg.film_id, fg.genre_id as id, g.name
+            FROM film_genres fg
+            LEFT JOIN genres g ON fg.genre_id = g.id
+            WHERE fg.film_id IN (:filmIds)
+            """;
 
     private final NamedParameterJdbcTemplate namedJdbc;
 
@@ -55,5 +58,24 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
                 .addValue("ids", uniqueGenreIds);
 
         return namedJdbc.queryForList(FIND_GENRES_IDS, params, Long.class);
+    }
+
+    @Override
+    public Map<Long, List<Genre>> findGenresByFilmIds(List<Long> filmIds) {
+        MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("filmIds", filmIds);
+
+        return namedJdbc.query(FIND_GENRES_BY_FILM_IDS, parameters, rs -> {
+            Map<Long, List<Genre>> result = new HashMap<>();
+
+            while(rs.next()) {
+                long filmId = rs.getLong("film_id");
+                Genre genre = rowMapper.mapRow(rs, rs.getRow());
+
+                result.computeIfAbsent(filmId, v -> new ArrayList<>()).add(genre);
+            }
+
+            return result;
+        });
     }
 }

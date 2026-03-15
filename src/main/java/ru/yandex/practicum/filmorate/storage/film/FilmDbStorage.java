@@ -2,6 +2,8 @@ package ru.yandex.practicum.filmorate.storage.film;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
@@ -74,24 +76,34 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         WHERE film_id = ? AND user_id = ?
         """;
 
-    public FilmDbStorage(JdbcTemplate jdbc, RowMapper<Film> rowMapper) {
+    private final NamedParameterJdbcTemplate namedJdbc;
+
+    public FilmDbStorage(JdbcTemplate jdbc, RowMapper<Film> rowMapper, NamedParameterJdbcTemplate namedJdbc) {
         super(jdbc, rowMapper);
+        this.namedJdbc = namedJdbc;
     }
 
     @Override
     public List<Film> findAll() {
         List<Film> films = findMany(FIND_ALL_FILMS);
 
-        films.forEach(this::fillMovieGenres);
+        enrichFilmsGenres(films);
 
         return films;
     }
 
-    private void fillMovieGenres(Film film) {
-        long filmId = film.getId();
-        List<Long> filmGenresIds = getCurrentGenresIds(filmId);
+    private void enrichFilmGenres(Film film) {
+        List<Long> filmGenresIds = getFilmGenreIds(film);
 
         film.setGenresIds(filmGenresIds);
+    }
+
+    private void enrichFilmsGenres(List<Film> films) {
+        List<Long> filmIds = films.stream().map(Film::getId).toList();
+
+        Map<Long, List<Long>> filmsGenres = getGenreIdsForFilms(filmIds);
+
+        films.forEach(film -> film.setGenresIds(filmsGenres.get(film.getId())));
     }
 
     @Override
@@ -125,13 +137,13 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         );
 
         updateGenres(newFilm);
-        fillMovieGenres(newFilm);
+        enrichFilmGenres(newFilm);
 
         return newFilm;
     }
 
     private void updateGenres(Film newFilm) {
-        Set<Long> currentGenreIds = new HashSet<>(getCurrentGenresIds(newFilm.getId()));
+        Set<Long> currentGenreIds = new HashSet<>(getFilmGenreIds(newFilm));
         Set<Long> newGenreIds = new HashSet<>(newFilm.getGenresIds());
 
         if (currentGenreIds.equals(newGenreIds)) {
@@ -149,17 +161,35 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         genresToAdd.forEach(id -> insert(INSERT_FILM_GENRES_QUERY, newFilm.getId(), id));
     }
 
-    private List<Long> getCurrentGenresIds(Long id) {
+    private List<Long> getFilmGenreIds(Film film) {
         String sql = "SELECT genre_id FROM film_genres WHERE film_id = ?";
         return jdbc.query(sql, (rs, rowNum) ->
-                rs.getLong("genre_id"), id);
+                rs.getLong("genre_id"), film.getId());
+    }
+
+    private Map<Long, List<Long>> getGenreIdsForFilms(List<Long> filmsIds) {
+        String sql = "SELECT film_id, genre_id FROM film_genres WHERE film_id IN (:filmIds)";
+        MapSqlParameterSource params = new MapSqlParameterSource("filmIds", filmsIds);
+
+        return namedJdbc.query(sql, params, rs -> {
+            Map<Long, List<Long>> result = new HashMap<>();
+
+            while (rs.next()) {
+                long filmId = rs.getLong("film_id");
+                long genreId = rs.getLong("genre_id");
+
+                result.computeIfAbsent(filmId, v -> new ArrayList<>()).add(genreId);
+            }
+
+            return result;
+        });
     }
 
     @Override
     public Optional<Film> findFilmById(long id) {
         Optional<Film> film = findOne(FIND_FILM_BY_ID, id);
 
-        film.ifPresent(this::fillMovieGenres);
+        film.ifPresent(this::enrichFilmGenres);
 
         return film;
     }
@@ -185,15 +215,10 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     }
 
     @Override
-    public Set<Long> getLikes(Long id) {
-        return Set.of();
-    }
-
-    @Override
     public List<Film> getPopularFilms(long limit) {
         List<Film> popularFilms = findMany(FIND_POPULAR_FILMS, limit);
 
-        popularFilms.forEach(this::fillMovieGenres);
+        enrichFilmsGenres(popularFilms);
 
         return popularFilms;
     }

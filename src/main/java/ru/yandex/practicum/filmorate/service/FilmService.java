@@ -51,7 +51,7 @@ public class FilmService {
 
         List<Film> films = filmStorage.findAll();
 
-        return mapFilmDtoList(films);
+        return convertToDtos(films);
     }
 
     public FilmDto createFilm(CreateFilmDto createFilmDto) {
@@ -67,7 +67,7 @@ public class FilmService {
         validateReleaseDate(film);
 
         film = filmStorage.save(film);
-        return mapToFilmDto(film);
+        return convertToDto(film);
     }
 
     public FilmDto updateFilm(UpdateFilmDto updateFilmDto) {
@@ -89,7 +89,7 @@ public class FilmService {
 
         updatedFilm = filmStorage.update(updatedFilm);
 
-        return mapToFilmDto(updatedFilm);
+        return convertToDto(updatedFilm);
     }
 
     private List<GenreRequestDto> processGenres(List<GenreRequestDto> genres) {
@@ -114,7 +114,7 @@ public class FilmService {
         log.debug("Retrieving film by ID: {}", id);
 
         return filmStorage.findFilmById(id)
-                .map(this::mapToFilmDto)
+                .map(this::convertToDto)
                 .orElseThrow(
                         () -> new NotFoundException(
                                 String.format(ERROR_FILM_NOT_FOUND_MESSAGE, id)
@@ -122,16 +122,32 @@ public class FilmService {
                 );
     }
 
-    private FilmDto mapToFilmDto(Film film) {
+    private FilmDto convertToDto(Film film) {
         List<Genre> genres = genreService.findGenresByIds(film.getGenresIds());
         MpaDto mpaDto = mpaService.findMpaById(film.getMpaId());
 
         return FilmMapper.toDto(film, mpaDto, genres);
     }
 
-    private List<FilmDto> mapFilmDtoList(List<Film> films) {
+    private List<FilmDto> convertToDtos(List<Film> films) {
+        List<Long> filmIds = extractFilmIds(films);
+
+        Map<Long, List<Genre>> filmsGenres = genreService.getGenresByFilmIds(filmIds);
+        Map<Long, MpaDto> filmsMpa = mpaService.getMpaByFilmIds(filmIds);
+
         return films.stream()
-                .map(this::mapToFilmDto)
+                .map(film -> {
+                    List<Genre> genres = filmsGenres.getOrDefault(film.getId(), Collections.emptyList());
+                    MpaDto mpaDto = filmsMpa.get(film.getId());
+
+                    return FilmMapper.toDto(film, mpaDto, genres);
+                })
+                .toList();
+    }
+
+    private List<Long> extractFilmIds(List<Film> films) {
+        return films.stream()
+                .map(Film::getId)
                 .toList();
     }
 
@@ -181,7 +197,7 @@ public class FilmService {
         log.debug("Getting top {} popular films", count);
 
         List<Film> popularFilms = filmStorage.getPopularFilms(count);
-        return mapFilmDtoList(popularFilms);
+        return convertToDtos(popularFilms);
     }
 
     public void requireValidFilm(long filmId) {

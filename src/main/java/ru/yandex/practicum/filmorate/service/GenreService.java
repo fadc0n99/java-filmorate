@@ -39,4 +39,8 @@ public class GenreService {
 
         return foundIds.size() == uniqueIds.size();
     }
+
+    public Map<Long, List<Genre>> getGenresByFilmIds(List<Long> filmIds) {
+        return genreStorage.findGenresByFilmIds(filmIds);
+    }
 }

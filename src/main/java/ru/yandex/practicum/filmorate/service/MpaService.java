@@ -11,7 +11,9 @@ import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,5 +43,16 @@ public class MpaService {
 
     public boolean isMpaExist(Long id) {
         return mpaStorage.isExistById(id);
+    }
+
+    public Map<Long, MpaDto> getMpaByFilmIds(List<Long> filmIds) {
+        Map<Long, Mpa> mpaMap = mpaStorage.findMpasByFilmIds(filmIds);
+
+        return mpaMap.entrySet()
+                .stream()
+                .collect(Collectors.toMap(
+                   Map.Entry::getKey,
+                   entry -> MpaMapper.mpaToMpaDto(entry.getValue())
+                ));
     }
 }
