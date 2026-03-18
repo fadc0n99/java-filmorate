@@ -17,10 +17,8 @@ public class UpdateReviewDto {
     @NotNull
     private Boolean isPositive;
     @NotNull
-    @Positive
     private Long userId;
     @NotNull
-    @Positive
     private Long filmId;
 
     public boolean hasContent() {
