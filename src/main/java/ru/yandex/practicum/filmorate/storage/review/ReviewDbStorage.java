@@ -56,7 +56,7 @@ public class ReviewDbStorage extends BaseDbStorage<Review> implements ReviewStor
                 )
                 FROM review_votes v
                 WHERE v.review_id = r.review_id
-            )
+            ), updated_at = ?
             WHERE review_id = ?
             """;
 
@@ -169,6 +169,7 @@ public class ReviewDbStorage extends BaseDbStorage<Review> implements ReviewStor
     public void updateReviewUseful(long reviewId) {
         update(
                 UPDATE_REVIEW_USEFUL,
+                LocalDateTime.now(),
                 reviewId
         );
     }
