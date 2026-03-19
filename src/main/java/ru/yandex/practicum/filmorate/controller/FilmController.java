@@ -115,5 +115,4 @@ public class FilmController {
         log.info("Retrieved {} films for director ID: {}", films.size(), directorId);
         return new ResponseEntity<>(films, HttpStatus.OK);
     }
-
 }

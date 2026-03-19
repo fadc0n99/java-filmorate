@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.exception.handler;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -27,11 +28,17 @@ public class ExceptionResponseHandler {
         return new ErrorResponse("Validation Error", ex.getMessage());
     }
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
+        log.warn("Ошибка валидации данных в теле запроса: {}", ex.getMessage());
+        return new ErrorResponse("Validation Error", "Некорректные параметры запроса");
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleThrowable(final Exception e) {
         log.error("Произошла непредвиденная ошибка: ", e);
         return new ErrorResponse("Internal Server Error", e.getMessage());
     }
-
 }
