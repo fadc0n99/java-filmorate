@@ -25,7 +25,6 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     private static final String UPDATE_FILM_QUERY = """
             UPDATE films SET name = ?, description = ?, release_date = ?, duration = ?, mpa_rating_id = ? WHERE id = ?
             """;
-
     private static final String FIND_FILMS_BY_DIRECTOR_SORT_YEAR = """
             SELECT f.* FROM films f
             JOIN film_directors fd ON f.id = fd.film_id
@@ -33,7 +32,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             ORDER BY f.release_date
             """;
     private static final String FIND_FILMS_BY_DIRECTOR_SORT_LIKES = """
-            SELECT f.*\s
+            SELECT f.* 
             FROM films f
             JOIN film_directors fd ON f.id = fd.film_id
             LEFT JOIN film_likes fl ON f.id = fl.film_id
@@ -41,7 +40,6 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             GROUP BY f.id
             ORDER BY COUNT(fl.user_id) DESC
             """;
-
     private static final String FIND_POPULAR_FILMS = """
             SELECT f.*
             FROM films f
@@ -56,9 +54,8 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     private static final String INSERT_FILM_DIRECTOR = "INSERT INTO film_directors (film_id, director_id) VALUES (?, ?)";
     private static final String DELETE_FILM_DIRECTORS = "DELETE FROM film_directors WHERE film_id = ?";
-
-    private static final String INSERT_FILM_GENRES_QUERY = "MERGE INTO film_genres (film_id, genre_id) KEY (film_id, genre_id) VALUES (?, ?)";
-    private static final String DELETE_FILM_GENRES_QUERY = "DELETE FROM film_genres WHERE film_id = ? AND genre_id = ?";
+    private static final String INSERT_FILM_GENRES_QUERY = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
+    private static final String DELETE_FILM_GENRES_QUERY = "DELETE FROM film_genres WHERE film_id = ?";
     private static final String INSERT_LIKE_FILM = "INSERT INTO film_likes (film_id, user_id, liked_at) VALUES (?, ?, ?)";
     private static final String DELETE_LIKE = "DELETE FROM film_likes WHERE film_id = ? AND user_id = ?";
     private static final String EXIST_USER_LIKE = "SELECT EXISTS(SELECT 1 FROM film_likes WHERE film_id = ? AND user_id = ?)";
@@ -103,8 +100,9 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public Film update(Film newFilm) {
-        update(UPDATE_FILM_QUERY, newFilm.getName(), newFilm.getDescription(), newFilm.getReleaseDate(),
+        jdbc.update(UPDATE_FILM_QUERY, newFilm.getName(), newFilm.getDescription(), newFilm.getReleaseDate(),
                 newFilm.getDuration(), newFilm.getMpaId(), newFilm.getId());
+
         updateGenres(newFilm);
         updateDirectors(newFilm);
         enrichFilmData(newFilm);
@@ -113,17 +111,27 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     private void saveGenresAndDirectors(Film film) {
         if (film.getGenresIds() != null) {
-            film.getGenresIds().forEach(gId -> insert(INSERT_FILM_GENRES_QUERY, film.getId(), gId));
+            film.getGenresIds().forEach(gId -> jdbc.update(INSERT_FILM_GENRES_QUERY, film.getId(), gId));
         }
         if (film.getDirectors() != null) {
-            film.getDirectors().forEach(d -> insert(INSERT_FILM_DIRECTOR, film.getId(), d.getId()));
+            film.getDirectors().forEach(d -> jdbc.update(INSERT_FILM_DIRECTOR, film.getId(), d.getId()));
         }
     }
 
     private void updateDirectors(Film film) {
-        update(DELETE_FILM_DIRECTORS, film.getId());
+        jdbc.update(DELETE_FILM_DIRECTORS, film.getId());
         if (film.getDirectors() != null) {
-            film.getDirectors().forEach(d -> insert(INSERT_FILM_DIRECTOR, film.getId(), d.getId()));
+            film.getDirectors().forEach(d -> jdbc.update(INSERT_FILM_DIRECTOR, film.getId(), d.getId()));
+        }
+    }
+
+    private void updateGenres(Film newFilm) {
+        jdbc.update(DELETE_FILM_GENRES_QUERY, newFilm.getId());
+        if (newFilm.getGenresIds() != null && !newFilm.getGenresIds().isEmpty()) {
+            // Используем Set, чтобы избежать дубликатов жанров
+            new HashSet<>(newFilm.getGenresIds()).forEach(gId ->
+                    jdbc.update(INSERT_FILM_GENRES_QUERY, newFilm.getId(), gId)
+            );
         }
     }
 
@@ -188,7 +196,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public void addLike(long fId, long uId) {
-        insert(INSERT_LIKE_FILM, fId, uId, LocalDateTime.now());
+        jdbc.update(INSERT_LIKE_FILM, fId, uId, LocalDateTime.now());
     }
 
     @Override
@@ -198,7 +206,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public void removeLike(long fId, long uId) {
-        update(DELETE_LIKE, fId, uId);
+        jdbc.update(DELETE_LIKE, fId, uId);
     }
 
     @Override
@@ -206,13 +214,5 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         List<Film> popularFilms = findMany(FIND_POPULAR_FILMS, limit);
         enrichFilmsData(popularFilms);
         return popularFilms;
-    }
-
-    private void updateGenres(Film newFilm) {
-        Set<Long> currentGenreIds = new HashSet<>(getFilmGenreIds(newFilm.getId()));
-        Set<Long> newGenreIds = new HashSet<>(newFilm.getGenresIds() != null ? newFilm.getGenresIds() : Collections.emptyList());
-        if (currentGenreIds.equals(newGenreIds)) return;
-        currentGenreIds.stream().filter(id -> !newGenreIds.contains(id)).forEach(id -> update(DELETE_FILM_GENRES_QUERY, newFilm.getId(), id));
-        newGenreIds.stream().filter(id -> !currentGenreIds.contains(id)).forEach(id -> insert(INSERT_FILM_GENRES_QUERY, newFilm.getId(), id));
     }
 }
