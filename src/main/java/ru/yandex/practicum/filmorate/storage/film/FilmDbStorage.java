@@ -32,7 +32,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             ORDER BY f.release_date
             """;
     private static final String FIND_FILMS_BY_DIRECTOR_SORT_LIKES = """
-            SELECT f.* 
+            SELECT f.*
             FROM films f
             JOIN film_directors fd ON f.id = fd.film_id
             LEFT JOIN film_likes fl ON f.id = fl.film_id
