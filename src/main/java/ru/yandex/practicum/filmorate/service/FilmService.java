@@ -200,6 +200,16 @@ public class FilmService {
         return convertToDtos(popularFilms);
     }
 
+    public List<FilmDto> getCommonFilmsSortedByPopularity(Long userId, Long friendId) {
+        log.debug("list of movies sorted by popularity");
+        userService.requireValidUser(userId);
+        userService.requireValidUser(friendId);
+
+
+        List<Film> popularFilms = filmStorage.getCommonFilms(userId, friendId);
+        return convertToDtos(popularFilms);
+    }
+
     public void requireValidFilm(long filmId) {
         if (filmId <= 0) {
             throw new ValidationException(ERROR_INVALID_ID_MESSAGE);
