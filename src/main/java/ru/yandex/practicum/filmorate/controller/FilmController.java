@@ -99,4 +99,13 @@ public class FilmController {
 
         return new ResponseEntity<>(popularFilms, HttpStatus.OK);
     }
+
+    @GetMapping("/common")
+    public ResponseEntity<List<FilmDto>> getCommonFilms(
+            @RequestParam Long userId,
+            @RequestParam Long friendId) {
+        log.debug("Request received: GET /films/common?userId={userId}&friendId={friendId} - Returns a list of movies sorted by popularity");
+        List<FilmDto> commonFilms = filmService.getCommonFilmsSortedByPopularity(userId, friendId);
+        return ResponseEntity.ok(commonFilms);
+    }
 }
