@@ -14,7 +14,6 @@ public class UpdateReviewDto {
     @NotBlank
     @Size(min = 1, max = 200)
     private String content;
-    @NotNull
     private Boolean isPositive;
     @NotNull
     private Long userId;
