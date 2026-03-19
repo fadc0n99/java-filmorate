@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
@@ -109,7 +110,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
                 newFilm.getId());
 
         if (rowsUpdated == 0) {
-            throw new RuntimeException("Фильм с id " + newFilm.getId() + " не найден");
+            throw new NotFoundException("Фильм с id " + newFilm.getId() + " не найден");
         }
 
         updateGenres(newFilm);

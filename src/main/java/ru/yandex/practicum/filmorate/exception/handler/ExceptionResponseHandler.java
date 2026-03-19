@@ -16,15 +16,22 @@ public class ExceptionResponseHandler {
     @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleNotFoundException(NotFoundException ex) {
-        log.warn(ex.getMessage());
-        return new ErrorResponse(ex.getMessage());
+        log.warn("Объект не найден: {}", ex.getMessage());
+        return new ErrorResponse("Not Found", ex.getMessage());
     }
 
     @ExceptionHandler(ValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleValidationException(ValidationException ex) {
-        log.warn("Validation failed: {}", ex.getMessage());
-        return new ErrorResponse(ex.getMessage());
+        log.warn("Ошибка валидации: {}", ex.getMessage());
+        return new ErrorResponse("Validation Error", ex.getMessage());
+    }
+
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleThrowable(final Exception e) {
+        log.error("Произошла непредвиденная ошибка: ", e);
+        return new ErrorResponse("Internal Server Error", e.getMessage());
     }
 
 }
