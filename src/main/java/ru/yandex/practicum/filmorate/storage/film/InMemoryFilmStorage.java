@@ -7,6 +7,7 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -24,16 +25,13 @@ public class InMemoryFilmStorage implements FilmStorage {
     public Film save(Film newFilm) {
         long newId = generateId();
         newFilm.setId(newId);
-
         films.put(newId, newFilm);
-
         return newFilm;
     }
 
     @Override
     public Film update(Film newFilm) {
         films.put(newFilm.getId(), newFilm);
-
         return newFilm;
     }
 
@@ -48,45 +46,11 @@ public class InMemoryFilmStorage implements FilmStorage {
     }
 
     @Override
-    public void removeLike(long filmId, long userId) {
-        Film film = films.get(filmId);
-        if (film == null) {
-            log.warn("Film with ID {} not found, cannot remove like from user {}", filmId, userId);
-            return;
-        }
-
-        Set<Long> likes = film.getLikedUsersFilms();
-        if (likes != null) {
-            likes.remove(userId);
-        }
-    }
-
-    public Set<Long> getLikes(Long id) {
-        Film film = films.get(id);
-        if (film == null) {
-            return Collections.emptySet();
-        }
-
-        Set<Long> likes = film.getLikedUsersFilms();
-        return likes != null ? likes : Collections.emptySet();
-    }
-
-    @Override
-    public List<Film> getPopularFilms(long count) {
-        return films.values().stream()
-                .sorted(Comparator.comparingInt((Film film) -> getLikes(film.getId()).size()).reversed())
-                .limit(count)
-                .toList();
-    }
-
-    @Override
     public void addLike(long filmId, long userId) {
         Film film = films.get(filmId);
-
         if (film == null) {
             throw new NotFoundException("Film with ID " + filmId + " not found");
         }
-
         Set<Long> likes = film.getLikedUsersFilms();
         if (likes == null) {
             likes = new HashSet<>();
@@ -96,27 +60,53 @@ public class InMemoryFilmStorage implements FilmStorage {
     }
 
     @Override
-    public boolean isLikeExists(long filmId, long userId) {
+    public void removeLike(long filmId, long userId) {
         Film film = films.get(filmId);
         if (film == null) {
-            return false;
+            log.warn("Film with ID {} not found", filmId);
+            return;
         }
-
         Set<Long> likes = film.getLikedUsersFilms();
-        return likes != null && likes.contains(userId);
+        if (likes != null) {
+            likes.remove(userId);
+        }
+    }
+
+    @Override
+    public boolean isLikeExists(long filmId, long userId) {
+        Film film = films.get(filmId);
+        return film != null && film.getLikedUsersFilms() != null && film.getLikedUsersFilms().contains(userId);
+    }
+
+    @Override
+    public List<Film> getPopularFilms(long count) {
+        return films.values().stream()
+                .sorted((f1, f2) -> Integer.compare(getLikesCount(f2), getLikesCount(f1)))
+                .limit(count)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Film> findAllByDirector(long directorId, String sortBy) {
+        List<Film> directorFilms = films.values().stream()
+                .filter(film -> film.getDirectors() != null &&
+                        film.getDirectors().stream().anyMatch(d -> d.getId() == directorId))
+                .collect(Collectors.toList());
+
+        if ("year".equalsIgnoreCase(sortBy)) {
+            directorFilms.sort(Comparator.comparing(Film::getReleaseDate));
+        } else if ("likes".equalsIgnoreCase(sortBy)) {
+            directorFilms.sort((f1, f2) -> Integer.compare(getLikesCount(f2), getLikesCount(f1)));
+        }
+        return directorFilms;
+    }
+
+    private int getLikesCount(Film film) {
+        return film.getLikedUsersFilms() != null ? film.getLikedUsersFilms().size() : 0;
     }
 
     private Long generateId() {
-        long currentId = films.keySet()
-                .stream()
-                .mapToLong(id -> id)
-                .max()
-                .orElse(0);
-
-        log.debug("Generated new ID for Film. New ID: {}", currentId + 1);
-
+        long currentId = films.keySet().stream().mapToLong(id -> id).max().orElse(0);
         return ++currentId;
     }
-
-
 }

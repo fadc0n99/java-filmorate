@@ -23,4 +23,5 @@ public class Film {
     private Long mpaId;
     private List<Long> genresIds;
     private Set<Long> likedUsersFilms;
+    private List<Director> directors;
 }

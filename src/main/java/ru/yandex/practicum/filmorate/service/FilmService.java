@@ -28,16 +28,19 @@ public class FilmService {
     private final UserService userService;
     private final GenreService genreService;
     private final MpaService mpaService;
+    private final DirectorService directorService;
 
     @Autowired
     public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
                        UserService userService,
                        GenreService genreService,
-                       MpaService mpaService) {
+                       MpaService mpaService,
+                       DirectorService directorService) {
         this.filmStorage = filmStorage;
         this.userService = userService;
         this.mpaService = mpaService;
         this.genreService = genreService;
+        this.directorService = directorService;
     }
 
     private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
@@ -220,4 +223,15 @@ public class FilmService {
             );
         }
     }
+
+    public List<FilmDto> getFilmsByDirector(Integer directorId, String sortBy) {
+        directorService.findById(directorId);
+
+        log.debug("Retrieving films for director ID: {} sorted by {}", directorId, sortBy);
+
+        List<Film> films = filmStorage.findAllByDirector(directorId, sortBy);
+
+        return convertToDtos(films);
+    }
+
 }

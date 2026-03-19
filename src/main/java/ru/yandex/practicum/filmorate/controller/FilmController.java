@@ -99,4 +99,21 @@ public class FilmController {
 
         return new ResponseEntity<>(popularFilms, HttpStatus.OK);
     }
+
+    @GetMapping("/director/{directorId}")
+    public ResponseEntity<List<FilmDto>> handleGetFilmsByDirector(
+            @PathVariable Integer directorId,
+            @RequestParam String sortBy) {
+        log.debug("Request received: GET /films/director/{} - sorting by {}", directorId, sortBy);
+
+        if (!sortBy.equals("year") && !sortBy.equals("likes")) {
+            throw new IllegalArgumentException("Сортировка возможна только по year или likes");
+        }
+
+        List<FilmDto> films = filmService.getFilmsByDirector(directorId, sortBy);
+
+        log.info("Retrieved {} films for director ID: {}", films.size(), directorId);
+        return new ResponseEntity<>(films, HttpStatus.OK);
+    }
+
 }
