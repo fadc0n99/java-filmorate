@@ -100,8 +100,17 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public Film update(Film newFilm) {
-        jdbc.update(UPDATE_FILM_QUERY, newFilm.getName(), newFilm.getDescription(), newFilm.getReleaseDate(),
-                newFilm.getDuration(), newFilm.getMpaId(), newFilm.getId());
+        int rowsUpdated = jdbc.update(UPDATE_FILM_QUERY,
+                newFilm.getName(),
+                newFilm.getDescription(),
+                newFilm.getReleaseDate(),
+                newFilm.getDuration(),
+                newFilm.getMpaId(),
+                newFilm.getId());
+
+        if (rowsUpdated == 0) {
+            throw new RuntimeException("Фильм с id " + newFilm.getId() + " не найден");
+        }
 
         updateGenres(newFilm);
         updateDirectors(newFilm);
