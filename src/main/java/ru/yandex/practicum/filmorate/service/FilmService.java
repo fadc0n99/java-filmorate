@@ -16,6 +16,7 @@ import ru.yandex.practicum.filmorate.mapper.FilmMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -25,17 +26,18 @@ import java.util.*;
 public class FilmService {
 
     private final FilmStorage filmStorage;
-    private final UserService userService;
+    private final UserStorage userStorage;
+    // TODO избавиться от зависимости сервисов друг от друг
     private final GenreService genreService;
     private final MpaService mpaService;
 
     @Autowired
     public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
-                       UserService userService,
+                       @Qualifier("userDbStorage") UserStorage userStorage,
                        GenreService genreService,
                        MpaService mpaService) {
         this.filmStorage = filmStorage;
-        this.userService = userService;
+        this.userStorage = userStorage;
         this.mpaService = mpaService;
         this.genreService = genreService;
     }
@@ -122,14 +124,16 @@ public class FilmService {
                 );
     }
 
-    private FilmDto convertToDto(Film film) {
+    // TODO вынести в отдельный конвертер из сервиса
+    public FilmDto convertToDto(Film film) {
         List<Genre> genres = genreService.findGenresByIds(film.getGenresIds());
         MpaDto mpaDto = mpaService.findMpaById(film.getMpaId());
 
         return FilmMapper.toDto(film, mpaDto, genres);
     }
 
-    private List<FilmDto> convertToDtos(List<Film> films) {
+    // TODO вынести в отдельный конвертер из сервиса
+    public List<FilmDto> convertToDtos(List<Film> films) {
         List<Long> filmIds = extractFilmIds(films);
 
         Map<Long, List<Genre>> filmsGenres = genreService.getGenresByFilmIds(filmIds);
@@ -153,11 +157,10 @@ public class FilmService {
 
     public void addFilmLike(long filmId, long userId) {
         requireValidFilm(filmId);
-        userService.requireValidUser(userId);
 
         log.debug("Adding like. Film: {}, User: {}", filmId, userId);
 
-        if (isLikeExists(filmId, userId)) {
+        if (userStorage.isExistById(userId) && isLikeExists(filmId, userId)) {
             log.error("User {} already liked film {}", userId, filmId);
             throw new ValidationException("User has already liked this film");
         }
@@ -167,11 +170,10 @@ public class FilmService {
 
     public void removeFilmLike(long filmId, long userId) {
         requireValidFilm(filmId);
-        userService.requireValidUser(userId);
 
         log.debug("Removing like. Film: {}, User: {}", filmId, userId);
 
-        if (!isLikeExists(filmId, userId)) {
+        if (userStorage.isExistById(userId) && !isLikeExists(filmId, userId)) {
             log.error("Cannot remove non-existent like. Film: {}, User: {}", filmId, userId);
             throw new ValidationException("User hasn't liked this film");
         }
@@ -179,7 +181,7 @@ public class FilmService {
         filmStorage.removeLike(filmId, userId);
     }
 
-    public boolean isFilmExists(long filmId) {
+    private boolean isFilmExists(long filmId) {
         return filmStorage.isExistById(filmId);
     }
 
@@ -189,7 +191,7 @@ public class FilmService {
         }
     }
 
-    public boolean isLikeExists(long filmId, long userId) {
+    private boolean isLikeExists(long filmId, long userId) {
         return filmStorage.isLikeExists(filmId, userId);
     }
 

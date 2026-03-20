@@ -21,6 +21,8 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     private static final String FIND_FILM_BY_ID = "SELECT * FROM films WHERE id = ?";
 
+    private static final String FIND_FILMS_BY_IDS = "SELECT * FROM films WHERE id in (:filmIds)";
+
     private static final String INSERT_FILM_QUERY = """
         INSERT INTO films (name, description, release_date, duration, mpa_rating_id, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -75,6 +77,8 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         DELETE FROM film_likes
         WHERE film_id = ? AND user_id = ?
         """;
+    private static final String USER_LIKES = "SELECT film_id, user_id FROM FILM_LIKES";
+    private static final String USER_LIKES_BY_ID = "SELECT film_id FROM FILM_LIKES WHERE user_id = ?";
 
     private final NamedParameterJdbcTemplate namedJdbc;
 
@@ -221,5 +225,33 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         enrichFilmsGenres(popularFilms);
 
         return popularFilms;
+    }
+
+    @Override
+    public List<Film> findFilmsByIds(List<Long> filmIds) {
+        MapSqlParameterSource params = new MapSqlParameterSource("filmIds", filmIds);
+
+        return namedJdbc.query(FIND_FILMS_BY_IDS, params, rowMapper);
+    }
+
+    @Override
+    public List<Long> findUserLikedFilmIds(long userId) {
+        return jdbc.queryForList(USER_LIKES_BY_ID, Long.class, userId);
+    }
+
+    @Override
+    public Map<Long, List<Long>> findAllUsersLikedFilmIds() {
+        return jdbc.query(USER_LIKES, rs -> {
+            Map<Long, List<Long>> result = new HashMap<>();
+
+            while (rs.next()) {
+                result.computeIfAbsent(
+                        rs.getLong("user_id"),
+                        v -> new ArrayList<>()
+                ).add(rs.getLong("film_id"));
+            }
+
+            return result;
+        });
     }
 }
