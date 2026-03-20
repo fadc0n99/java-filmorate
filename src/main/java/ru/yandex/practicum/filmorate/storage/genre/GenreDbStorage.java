@@ -12,7 +12,7 @@ import java.util.*;
 
 @Repository
 public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage {
-    private static final String FIND_ALL_GENRE = "SELECT * FROM genres";
+    private static final String FIND_ALL_GENRE = "SELECT * FROM genres order by id";
     private static final String FIND_GENRE_BY_ID = "SELECT * FROM genres WHERE id = ?";
     private static final String FIND_GENRE_BY_IDS = "SELECT * FROM genres WHERE id IN (:ids)";
     private static final String FIND_GENRES_IDS = "SELECT id FROM genres WHERE id IN (:ids)";
