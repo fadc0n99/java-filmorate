@@ -68,7 +68,7 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
         return namedJdbc.query(FIND_GENRES_BY_FILM_IDS, parameters, rs -> {
             Map<Long, List<Genre>> result = new HashMap<>();
 
-            while(rs.next()) {
+            while (rs.next()) {
                 long filmId = rs.getLong("film_id");
                 Genre genre = rowMapper.mapRow(rs, rs.getRow());
 
