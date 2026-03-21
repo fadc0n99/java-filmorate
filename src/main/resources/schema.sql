@@ -64,3 +64,31 @@ CREATE TABLE IF NOT EXISTS friendships (
     CONSTRAINT unique_friendship UNIQUE (user_id, friend_id),
     CONSTRAINT different_users CHECK (user_id != friend_id)
 );
+
+-- Таблица отзывы
+CREATE TABLE IF NOT EXISTS reviews (
+    review_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    content VARCHAR(200) NOT NULL,
+    is_positive BOOLEAN NOT NULL,
+    user_id BIGINT NOT NULL,
+    film_id BIGINT NOT NULL,
+    useful INT DEFAULT 0,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (film_id) REFERENCES films(id) ON DELETE CASCADE,
+    CONSTRAINT unique_review UNIQUE (user_id, film_id)
+);
+
+-- Таблица с оценками отзывов
+CREATE TABLE IF NOT EXISTS review_votes (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    review_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    vote_type ENUM('LIKE', 'DISLIKE') NOT NULL,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (review_id) REFERENCES reviews(review_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT unique_vote UNIQUE (review_id, user_id)
+);
