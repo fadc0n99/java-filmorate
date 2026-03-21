@@ -6,6 +6,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
@@ -53,7 +54,7 @@ public class BaseDbStorage<T> {
     protected void update(String query, Object... params) {
         int updatedRows = jdbc.update(query, params);
         if (updatedRows == 0) {
-            throw new InternalException("Couldn't update data");
+            throw new NotFoundException("Entity not found for update/delete");
         }
     }
 
