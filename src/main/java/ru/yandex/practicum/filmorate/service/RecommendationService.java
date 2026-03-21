@@ -35,7 +35,7 @@ public class RecommendationService {
 
     public List<FilmDto> getFilmRecommendationsByUserLikes(long userId) {
         if (!userStorage.isExistById(userId)) {
-            throw new NotFoundException("User with id " + userId + " not found");
+            throw new NotFoundException("user with id " + userId + " not found");
         }
 
         List<Long> userLikes = filmStorage.findUserLikedFilmIds(userId);
