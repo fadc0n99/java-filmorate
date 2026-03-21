@@ -1,18 +1,14 @@
 package ru.yandex.practicum.filmorate.storage.review;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.model.VoteType;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 
-import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,12 +27,16 @@ public class ReviewDbStorage extends BaseDbStorage<Review> implements ReviewStor
             WHERE review_id = ?
             """;
     public static final String DELETE_REVIEW = "DELETE FROM reviews WHERE review_id = ?";
-    public static final String FIND_ALL_WITH_LIMIT = "SELECT * FROM reviews LIMIT ?";
-    public static final String FIND_ALL_BY_FILM_ID_WITH_LIMIT = "SELECT * FROM reviews WHERE film_id = ? LIMIT ?";
+    public static final String FIND_ALL_WITH_LIMIT = "SELECT * FROM reviews ORDER BY useful DESC LIMIT ?";
+    public static final String FIND_ALL_BY_FILM_ID_WITH_LIMIT =
+            "SELECT * FROM reviews WHERE film_id = ? ORDER BY useful DESC LIMIT ?";
     public static final String FIND_BY_ID = "SELECT * FROM reviews WHERE review_id = ?";
     public static final String FIND_USER_VOTE = """
             SELECT vote_type FROM review_votes WHERE review_id = ? AND user_id = ?
             """;
+    private static final String EXISTS_BY_ID = "SELECT EXISTS(SELECT 1 FROM reviews WHERE review_id = ?)";
+    private static final String EXISTS_BY_USER_AND_FILM =
+            "SELECT EXISTS(SELECT 1 FROM reviews WHERE user_id = ? and film_id = ?)";
     public static final String INSERT_VOTE = """
             INSERT INTO review_votes (review_id, user_id, vote_type, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?)
@@ -66,23 +66,19 @@ public class ReviewDbStorage extends BaseDbStorage<Review> implements ReviewStor
 
     @Override
     public Review save(Review review) {
-        try {
-            long id = insert(
-                    INSERT_REVIEW,
-                    review.getContent(),
-                    review.getIsPositive(),
-                    review.getUserId(),
-                    review.getFilmId(),
-                    LocalDateTime.now(),
-                    LocalDateTime.now()
-            );
+        long id = insert(
+                INSERT_REVIEW,
+                review.getContent(),
+                review.getIsPositive(),
+                review.getUserId(),
+                review.getFilmId(),
+                LocalDateTime.now(),
+                LocalDateTime.now()
+        );
 
-            review.setReviewId(id);
+        review.setReviewId(id);
 
-            return review;
-        } catch (DataAccessException e) {
-            throw handleReviewError(e, review);
-        }
+        return review;
     }
 
     @Override
@@ -119,50 +115,30 @@ public class ReviewDbStorage extends BaseDbStorage<Review> implements ReviewStor
     }
 
     @Override
-    public void addVote(long id, long userId, VoteType voteType) {
-        try {
-            insert(
-                    INSERT_VOTE,
-                    id,
-                    userId,
-                    voteType.name(),
-                    LocalDateTime.now(),
-                    LocalDateTime.now()
-            );
+    public boolean isExistById(long reviewId) {
+        return isExistOne(EXISTS_BY_ID, reviewId);
+    }
 
-        } catch (DataAccessException e) {
-            throw handleVoteError(e, id, userId);
-        }
+    @Override
+    public void addVote(long id, long userId, VoteType voteType) {
+        insert(
+                INSERT_VOTE,
+                id,
+                userId,
+                voteType.name(),
+                LocalDateTime.now(),
+                LocalDateTime.now()
+        );
     }
 
     @Override
     public void updateVote(long id, long userId, VoteType voteType) {
-        try {
-            update(
-                    UPDATE_VOTE,
-                    voteType.name(),
-                    LocalDateTime.now(),
-                    id,
-                    userId
-            );
-
-        } catch (DataAccessException e) {
-            throw handleVoteError(e, id, userId);
-        }
+        update(UPDATE_VOTE, voteType.name(), LocalDateTime.now(), id, userId);
     }
 
     @Override
     public void deleteVote(long id, long userId, VoteType voteType) {
-        try {
-            update(
-                    DELETE_VOTE,
-                    id,
-                    userId
-            );
-
-        } catch (DataAccessException e) {
-            throw handleVoteError(e, id, userId);
-        }
+        update(DELETE_VOTE, id, userId);
     }
 
     @Override
@@ -184,46 +160,8 @@ public class ReviewDbStorage extends BaseDbStorage<Review> implements ReviewStor
         }
     }
 
-    private RuntimeException handleReviewError(DataAccessException e, Review review) {
-        String message = extractExceptionMessage(e);
-
-        if (message.contains("FOREIGN KEY(USER_ID)")) {
-            throw new NotFoundException("User with ID " + review.getUserId() + " not found");
-        }
-        if (message.contains("FOREIGN KEY(FILM_ID)")) {
-            throw new NotFoundException("Film with ID " + review.getFilmId() + " not found");
-        }
-        if (message.contains("UNIQUE_REVIEW_INDEX")) {
-            throw new ValidationException(
-                    "Review already exists for film ID " + review.getFilmId() + " and user ID " + review.getUserId());
-        }
-
-        throw e;
-    }
-
-    private RuntimeException handleVoteError(DataAccessException e, long reviewId, long userId) {
-        String message = extractExceptionMessage(e);
-
-        if (message.contains("FOREIGN KEY(USER_ID)")) {
-            throw new NotFoundException("User with ID " + userId + " not found");
-        }
-        if (message.contains("FOREIGN KEY(REVIEW_ID)")) {
-            throw new NotFoundException("Review with ID " + reviewId + " not found");
-        }
-        if (message.contains("UNIQUE_VOTE")) {
-            return new ValidationException(
-                    String.format("User %d already voted on review %d", userId, reviewId)
-            );
-        }
-        return e;
-    }
-
-    private String extractExceptionMessage(DataAccessException e) {
-        Throwable rootCause = e.getRootCause();
-        if (!(rootCause instanceof SQLIntegrityConstraintViolationException)) {
-            throw e;
-        }
-
-        return rootCause.getMessage();
+    @Override
+    public boolean existsByUserAndFilm(Long userId, Long filmId) {
+        return isExistOne(EXISTS_BY_USER_AND_FILM, userId, filmId);
     }
 }

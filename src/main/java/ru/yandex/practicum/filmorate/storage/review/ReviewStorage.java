@@ -19,6 +19,8 @@ public interface ReviewStorage {
 
     Optional<Review> findById(long reviewId);
 
+    boolean isExistById(long reviewId);
+
     void addVote(long id, long userId, VoteType voteType);
 
     void updateVote(long id, long userId, VoteType voteType);
@@ -28,4 +30,6 @@ public interface ReviewStorage {
     void updateReviewUseful(long reviewId);
 
     Optional<VoteType> findUserVote(long reviewId, long userId);
+
+    boolean existsByUserAndFilm(Long userId, Long filmId);
 }

@@ -16,7 +16,8 @@ import ru.yandex.practicum.filmorate.mapper.FilmMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
+import ru.yandex.practicum.filmorate.validation.FilmValidator;
+import ru.yandex.practicum.filmorate.validation.UserValidator;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -26,24 +27,25 @@ import java.util.*;
 public class FilmService {
 
     private final FilmStorage filmStorage;
-    private final UserStorage userStorage;
-    // TODO избавиться от зависимости сервисов друг от друг
     private final GenreService genreService;
     private final MpaService mpaService;
+    private final FilmValidator filmValidator;
+    private final UserValidator userValidator;
 
     @Autowired
     public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
-                       @Qualifier("userDbStorage") UserStorage userStorage,
                        GenreService genreService,
-                       MpaService mpaService) {
+                       MpaService mpaService,
+                       FilmValidator filmValidator,
+                       UserValidator userValidator) {
         this.filmStorage = filmStorage;
-        this.userStorage = userStorage;
         this.mpaService = mpaService;
         this.genreService = genreService;
+        this.filmValidator = filmValidator;
+        this.userValidator = userValidator;
     }
 
     private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
-    private static final String ERROR_INVALID_ID_MESSAGE = "Invalid film ID: must be greater than 0";
     private static final String ERROR_FILM_NOT_FOUND_MESSAGE = "Film with ID %d not found";
     private static final String ERROR_RELEASE_DATE_MESSAGE =
             String.format("Release date must be after %s", MIN_RELEASE_DATE);
@@ -73,7 +75,6 @@ public class FilmService {
     }
 
     public FilmDto updateFilm(UpdateFilmDto updateFilmDto) {
-        requireValidFilm(updateFilmDto.getId());
         validateMpaRating(updateFilmDto.getMpa());
 
         List<GenreRequestDto> processedGenres = processGenres(updateFilmDto.getGenres());
@@ -111,8 +112,6 @@ public class FilmService {
     }
 
     public FilmDto getFilm(long id) {
-        requireValidFilm(id);
-
         log.debug("Retrieving film by ID: {}", id);
 
         return filmStorage.findFilmById(id)
@@ -156,11 +155,12 @@ public class FilmService {
     }
 
     public void addFilmLike(long filmId, long userId) {
-        requireValidFilm(filmId);
+        filmValidator.validateExists(filmId);
+        userValidator.validateExists(userId);
 
         log.debug("Adding like. Film: {}, User: {}", filmId, userId);
 
-        if (userStorage.isExistById(userId) && isLikeExists(filmId, userId)) {
+        if (isLikeExists(filmId, userId)) {
             log.error("User {} already liked film {}", userId, filmId);
             throw new ValidationException("User has already liked this film");
         }
@@ -169,20 +169,17 @@ public class FilmService {
     }
 
     public void removeFilmLike(long filmId, long userId) {
-        requireValidFilm(filmId);
+        filmValidator.validateExists(filmId);
+        userValidator.validateExists(userId);
 
         log.debug("Removing like. Film: {}, User: {}", filmId, userId);
 
-        if (userStorage.isExistById(userId) && !isLikeExists(filmId, userId)) {
+        if (!isLikeExists(filmId, userId)) {
             log.error("Cannot remove non-existent like. Film: {}, User: {}", filmId, userId);
             throw new ValidationException("User hasn't liked this film");
         }
 
         filmStorage.removeLike(filmId, userId);
-    }
-
-    private boolean isFilmExists(long filmId) {
-        return filmStorage.isExistById(filmId);
     }
 
     private void validateReleaseDate(Film film) {
@@ -191,7 +188,7 @@ public class FilmService {
         }
     }
 
-    private boolean isLikeExists(long filmId, long userId) {
+    public boolean isLikeExists(long filmId, long userId) {
         return filmStorage.isLikeExists(filmId, userId);
     }
 
@@ -202,13 +199,13 @@ public class FilmService {
         return convertToDtos(popularFilms);
     }
 
-    public void requireValidFilm(long filmId) {
-        if (filmId <= 0) {
-            throw new ValidationException(ERROR_INVALID_ID_MESSAGE);
-        }
-        if (!isFilmExists(filmId)) {
-            throw new NotFoundException(String.format(ERROR_FILM_NOT_FOUND_MESSAGE, filmId));
-        }
+    public List<FilmDto> getCommonFilmsSortedByPopularity(Long userId, Long friendId) {
+        log.debug("list of movies sorted by popularity");
+        userValidator.validateExists(userId);
+        userValidator.validateExists(friendId);
+
+        List<Film> popularFilms = filmStorage.getCommonFilms(userId, friendId);
+        return convertToDtos(popularFilms);
     }
 
     private void validateMpaRating(MpaRequestDto mpaRequestDto) {
