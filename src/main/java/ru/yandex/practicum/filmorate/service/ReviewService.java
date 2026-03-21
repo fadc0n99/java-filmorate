@@ -1,42 +1,46 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.dto.review.CreateReviewDto;
 import ru.yandex.practicum.filmorate.dto.review.ResponseReviewDto;
 import ru.yandex.practicum.filmorate.dto.review.UpdateReviewDto;
+import ru.yandex.practicum.filmorate.exception.ErrorMessages;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.mapper.ReviewMapper;
 import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.model.VoteType;
+import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.review.ReviewDbStorage;
-import ru.yandex.practicum.filmorate.validation.FilmValidator;
-import ru.yandex.practicum.filmorate.validation.ReviewValidator;
-import ru.yandex.practicum.filmorate.validation.UserValidator;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ReviewService {
 
     private final ReviewDbStorage reviewDbStorage;
-    private final UserValidator userValidator;
-    private final FilmValidator filmValidator;
-    private final ReviewValidator reviewValidator;
+    private final UserStorage userStorage;
+    private final FilmStorage filmStorage;
+
+    public ReviewService(ReviewDbStorage reviewDbStorage,
+                         @Qualifier("userDbStorage") UserStorage userStorage,
+                         @Qualifier("filmDbStorage") FilmStorage filmStorage) {
+        this.reviewDbStorage = reviewDbStorage;
+        this.userStorage = userStorage;
+        this.filmStorage = filmStorage;
+    }
 
     private static final int DEFAULT_REVIEW_LIMIT = 10;
 
-    private static final String ERROR_REVIEW_NOT_FOUND_MESSAGE = "Review with ID %d not found";
-
     public ResponseReviewDto saveReview(CreateReviewDto reviewDto) {
-        userValidator.validateExists(reviewDto.getUserId());
-        reviewValidator.validateNotExistsByUserAndFilm(reviewDto.getUserId(), reviewDto.getFilmId());
-        filmValidator.validateExists(reviewDto.getFilmId());
+        validateNoDuplicateReview(reviewDto.getUserId(), reviewDto.getFilmId());
+        validateUserExists(reviewDto.getUserId());
+        validateFilmExists(reviewDto.getFilmId());
 
 
         Review review = ReviewMapper.toReview(reviewDto);
@@ -51,7 +55,7 @@ public class ReviewService {
                 .map(result -> ReviewMapper.updateFields(result, reviewDto))
                 .orElseThrow(
                         () -> new NotFoundException(
-                                String.format(ERROR_REVIEW_NOT_FOUND_MESSAGE, reviewDto.getReviewId())
+                                ErrorMessages.reviewNotFound(reviewDto.getReviewId())
                         )
                 );
 
@@ -69,7 +73,7 @@ public class ReviewService {
                 .map(ReviewMapper::toDto)
                 .orElseThrow(
                         () -> new NotFoundException(
-                                String.format(ERROR_REVIEW_NOT_FOUND_MESSAGE, id)
+                                ErrorMessages.reviewNotFound(id)
                         )
                 );
     }
@@ -111,7 +115,7 @@ public class ReviewService {
     }
 
     private void processAddVote(Long id, Long userId, VoteType voteType) {
-        reviewValidator.validateExists(id);
+        validateReviewExists(id);
 
         Optional<VoteType> currentVote = reviewDbStorage.findUserVote(id, userId);
 
@@ -130,7 +134,7 @@ public class ReviewService {
     }
 
     private void processDeleteVote(Long id, Long userId, VoteType voteType) {
-        reviewValidator.validateExists(id);
+        validateReviewExists(id);
 
         Optional<VoteType> currentVote = reviewDbStorage.findUserVote(id, userId);
 
@@ -150,5 +154,29 @@ public class ReviewService {
         log.info("Deleted like from review {} by user {}", id, userId);
 
         reviewDbStorage.updateReviewUseful(id);
+    }
+
+    private void validateFilmExists(long filmId) {
+        if (!filmStorage.isExistById(filmId)) {
+            throw new NotFoundException(ErrorMessages.filmNotFound(filmId));
+        }
+    }
+
+    private void validateUserExists(long userId) {
+        if (!userStorage.isExistById(userId)) {
+            throw new NotFoundException(ErrorMessages.userNotFound(userId));
+        }
+    }
+
+    private void validateReviewExists(long reviewId) {
+        if (!reviewDbStorage.isExistById(reviewId)) {
+            throw new NotFoundException(ErrorMessages.reviewNotFound(reviewId));
+        }
+    }
+
+    private void validateNoDuplicateReview(long userId, long filmId) {
+        if (reviewDbStorage.existsByUserAndFilm(userId, filmId)) {
+            throw new NotFoundException(ErrorMessages.REVIEW_ALREADY_EXISTS);
+        }
     }
 }

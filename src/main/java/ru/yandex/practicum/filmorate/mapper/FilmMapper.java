@@ -3,12 +3,9 @@ package ru.yandex.practicum.filmorate.mapper;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import ru.yandex.practicum.filmorate.dto.film.CreateFilmDto;
-import ru.yandex.practicum.filmorate.dto.film.FilmDto;
 import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
-import ru.yandex.practicum.filmorate.dto.mpa.MpaDto;
 import ru.yandex.practicum.filmorate.dto.film.UpdateFilmDto;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.model.Genre;
 
 import java.util.List;
 
@@ -28,18 +25,6 @@ public final class FilmMapper {
                 .duration(requestDto.getDuration())
                 .mpaId(requestDto.getMpa().getId())
                 .genresIds(genreIds)
-                .build();
-    }
-
-    public static FilmDto toDto(Film film, MpaDto mpaDto, List<Genre> genres) {
-        return FilmDto.builder()
-                .id(film.getId())
-                .name(film.getName())
-                .description(film.getDescription())
-                .releaseDate(film.getReleaseDate())
-                .duration(film.getDuration())
-                .mpa(mpaDto)
-                .genres(genres)
                 .build();
     }
 

@@ -5,8 +5,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.dto.film.FilmDto;
+import ru.yandex.practicum.filmorate.exception.ErrorMessages;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.mapper.FilmDtoMapper;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.validation.UserValidator;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.Collections;
 import java.util.List;
@@ -19,24 +22,23 @@ import java.util.stream.Collectors;
 public class RecommendationService {
 
     private final FilmStorage filmStorage;
-    // TODO избавиться от зависимости, когда будет отдельный конвертер для ДТО
-    private final FilmService filmService;
-    private final UserValidator userValidator;
+    private final UserStorage userStorage;
+    private final FilmDtoMapper filmDtoMapper;
 
     @Autowired
     public RecommendationService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
-                                 FilmService filmService,
-                                 UserValidator userValidator) {
+                                 @Qualifier("userDbStorage") UserStorage userStorage,
+                                 FilmDtoMapper filmDtoMapper) {
         this.filmStorage = filmStorage;
-        this.filmService = filmService;
-        this.userValidator = userValidator;
+        this.userStorage = userStorage;
+        this.filmDtoMapper = filmDtoMapper;
     }
 
     public List<FilmDto> getFilmRecommendationsByUserLikes(long userId) {
-        userValidator.validateExists(userId);
+        validateUserExists(userId);
 
         List<Long> userLikes = filmStorage.findUserLikedFilmIds(userId);
-        List<Long> recommendations = null;
+        List<Long> recommendations = Collections.emptyList();
 
         if (!userLikes.isEmpty()) {
             Map<Long, List<Long>> otherUsersLikes = filmStorage.findAllUsersLikedFilmIds();
@@ -46,7 +48,7 @@ public class RecommendationService {
             }
         }
 
-        return filmService.convertToDtos(filmStorage.findFilmsByIds(recommendations));
+        return filmDtoMapper.toDtos(filmStorage.findFilmsByIds(recommendations));
 
     }
 
@@ -82,5 +84,11 @@ public class RecommendationService {
         return otherUserLikes.stream()
                 .filter(userLikeFilmIds::contains)
                 .count();
+    }
+
+    private void validateUserExists(long userId) {
+        if (!userStorage.isExistById(userId)) {
+            throw new NotFoundException(ErrorMessages.userNotFound(userId));
+        }
     }
 }

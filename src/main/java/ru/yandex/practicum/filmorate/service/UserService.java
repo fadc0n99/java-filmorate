@@ -7,12 +7,12 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.dto.user.CreateUserDto;
 import ru.yandex.practicum.filmorate.dto.user.UpdateUserDto;
 import ru.yandex.practicum.filmorate.dto.user.UserDto;
+import ru.yandex.practicum.filmorate.exception.ErrorMessages;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.mapper.UserMapper;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
-import ru.yandex.practicum.filmorate.validation.UserValidator;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,17 +22,11 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserStorage userStorage;
-    private final UserValidator userValidator;
 
     @Autowired
-    public UserService(@Qualifier("userDbStorage") UserStorage userStorage,
-                       UserValidator userValidator) {
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage) {
         this.userStorage = userStorage;
-        this.userValidator = userValidator;
     }
-
-    private static final String USER_NOT_FOUND_MESSAGE = "User with ID %d not found";
-    private static final String SELF_INTERACTION_MESSAGE = "Users cannot interact with themselves";
 
     public List<UserDto> findAllUsers() {
         log.debug("Retrieving all users from storage");
@@ -69,9 +63,7 @@ public class UserService {
         User updatedUser = userStorage.getUserById(updateUserDto.getId())
                 .map(user -> UserMapper.updateUserFields(user, updateUserDto))
                 .orElseThrow(
-                        () -> new NotFoundException(
-                                String.format(USER_NOT_FOUND_MESSAGE, updateUserDto.getId())
-                        )
+                        () -> new NotFoundException(ErrorMessages.userNotFound(updateUserDto.getId()))
                 );
 
         updatedUser = userStorage.update(updatedUser);
@@ -83,7 +75,7 @@ public class UserService {
 
         return userStorage.getUserById(userId)
                 .map(UserMapper::mapToUserDto)
-                .orElseThrow(() -> new NotFoundException(String.format(USER_NOT_FOUND_MESSAGE, userId)));
+                .orElseThrow(() -> new NotFoundException(ErrorMessages.userNotFound(userId)));
     }
 
     public void addFriend(long userId, long friendId) {
@@ -101,7 +93,7 @@ public class UserService {
     }
 
     public List<UserDto> getUserFriends(long userId) {
-        userValidator.validateExists(userId);
+        validateUserExists(userId);
 
         log.debug("Retrieving friends for user ID: {}", userId);
 
@@ -146,10 +138,16 @@ public class UserService {
     private void checkUsersCanInteract(long userId, long otherUserId) {
         if (userId == otherUserId) {
             log.error("User {} attempted to interact with themselves", userId);
-            throw new ValidationException(SELF_INTERACTION_MESSAGE);
+            throw new ValidationException(ErrorMessages.SELF_INTERACTION);
         }
-        userValidator.validateExists(userId);
-        userValidator.validateExists(otherUserId);
+        validateUserExists(userId);
+        validateUserExists(otherUserId);
+    }
+
+    private void validateUserExists(long userId) {
+        if (!userStorage.isExistById(userId)) {
+            throw new NotFoundException(ErrorMessages.userNotFound(userId));
+        }
     }
 
 }
