@@ -48,13 +48,26 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     private static final String FIND_POPULAR_FILMS = """
         SELECT f.*
         FROM films f
-        JOIN (
+        LEFT JOIN (
             SELECT film_id, COUNT(*) AS likes_count
             FROM film_likes
             GROUP BY film_id
         ) AS film_stats ON f.id = film_stats.film_id
-        ORDER BY film_stats.likes_count DESC
+        ORDER BY COALESCE(film_stats.likes_count, 0) DESC
         LIMIT ?
+        """;
+
+    private static final String GET_COMMON_FILMS = """
+        SELECT f.*
+          FROM Films f
+          JOIN film_likes uf1 ON f.id = uf1.film_id AND uf1.user_id = ?
+          JOIN film_likes uf2 ON f.id = uf2.film_id AND uf2.user_id = ?
+          JOIN (
+            SELECT film_id, COUNT(*) AS likes_count
+            FROM film_likes
+            GROUP BY film_id
+            ) AS film_stats ON f.id = film_stats.film_id
+         ORDER BY film_stats.likes_count DESC
         """;
 
     /**
@@ -253,5 +266,14 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
             return result;
         });
+    }
+
+    @Override
+    public List<Film> getCommonFilms(Long userId, Long friendId) {
+        List<Film> popularFilms = findMany(GET_COMMON_FILMS, userId, friendId);
+
+        enrichFilmsGenres(popularFilms);
+
+        return popularFilms;
     }
 }

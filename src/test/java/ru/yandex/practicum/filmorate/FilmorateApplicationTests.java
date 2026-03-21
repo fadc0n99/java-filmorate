@@ -565,6 +565,72 @@ class FilmorateApplicationTests {
     }
 
     @Test
+    void testGetСommonFilms() {
+        User user1 = userStorage.save(testUser);
+        User user2 = userStorage.save(User.builder()
+                .email("user2@test.com")
+                .login("user2")
+                .name("User 2")
+                .birthday(LocalDate.of(1995, 1, 1))
+                .friendsIds(Set.of())
+                .build());
+        User user3 = userStorage.save(User.builder()
+                .email("user3@test.com")
+                .login("user3")
+                .name("User 3")
+                .birthday(LocalDate.of(1996, 1, 1))
+                .friendsIds(Set.of())
+                .build());
+
+        Film film1 = filmStorage.save(Film.builder()
+                .name("Film 1")
+                .description("Description 1")
+                .releaseDate(LocalDate.of(2000, 1, 1))
+                .duration(120)
+                .mpaId(1L)
+                .genresIds(List.of(1L))
+                .likedUsersFilms(Set.of())
+                .build());
+
+        Film film2 = filmStorage.save(Film.builder()
+                .name("Film 2")
+                .description("Description 2")
+                .releaseDate(LocalDate.of(2001, 1, 1))
+                .duration(130)
+                .mpaId(2L)
+                .genresIds(List.of(2L))
+                .likedUsersFilms(Set.of())
+                .build());
+
+        Film film3 = filmStorage.save(Film.builder()
+                .name("Film 3")
+                .description("Description 3")
+                .releaseDate(LocalDate.of(2002, 1, 1))
+                .duration(140)
+                .mpaId(3L)
+                .genresIds(List.of(3L))
+                .likedUsersFilms(Set.of())
+                .build());
+
+        filmStorage.addLike(film2.getId(), user1.getId());
+        filmStorage.addLike(film2.getId(), user2.getId());
+        filmStorage.addLike(film2.getId(), user3.getId());
+
+        filmStorage.addLike(film3.getId(), user1.getId());
+        filmStorage.addLike(film3.getId(), user2.getId());
+
+        filmStorage.addLike(film1.getId(), user1.getId());
+
+        List<Film> commonFilms = filmStorage.getCommonFilms(user1.getId(), user2.getId());
+
+        assertThat(commonFilms).hasSize(2);
+
+        assertThat(commonFilms.get(0).getId()).isEqualTo(film2.getId());
+        assertThat(commonFilms.get(1).getId()).isEqualTo(film3.getId());
+    }
+
+
+    @Test
     void testGetPopularFilmsWithLimit() {
         User user = userStorage.save(testUser);
 

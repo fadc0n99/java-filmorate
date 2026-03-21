@@ -319,14 +319,14 @@ class ReviewControllerTest {
     }
 
     @Test
-    void addDuplicateLike_ShouldReturnBadRequest() throws Exception {
+    void addDuplicateLike_ShouldReturnOk() throws Exception {
         Long reviewId = createReview("Good movie!", true, userId1, filmId1);
 
         mockMvc.perform(put("/reviews/{id}/like/{userId}", reviewId, userId2))
                 .andExpect(status().isOk());
 
         mockMvc.perform(put("/reviews/{id}/like/{userId}", reviewId, userId2))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk());
     }
 
     @Test

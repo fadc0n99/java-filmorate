@@ -12,6 +12,7 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.mapper.UserMapper;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
+import ru.yandex.practicum.filmorate.validation.UserValidator;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,14 +22,16 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserStorage userStorage;
+    private final UserValidator userValidator;
 
     @Autowired
-    public UserService(@Qualifier("userDbStorage") UserStorage userStorage) {
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage,
+                       UserValidator userValidator) {
         this.userStorage = userStorage;
+        this.userValidator = userValidator;
     }
 
     private static final String USER_NOT_FOUND_MESSAGE = "User with ID %d not found";
-    private static final String INVALID_USER_ID_MESSAGE = "Invalid user ID: must be greater than 0";
     private static final String SELF_INTERACTION_MESSAGE = "Users cannot interact with themselves";
 
     public List<UserDto> findAllUsers() {
@@ -49,7 +52,7 @@ public class UserService {
 
 
         // Если имя не указано, то используем логин как имя
-        if (newUser.getName() == null) {
+        if (newUser.getName() == null || newUser.getName().isBlank()) {
             log.info("User name is null. Setting name to login value. User ID: {}, Login: {}",
                     newUser.getId(), newUser.getLogin());
             newUser.setName(newUser.getLogin());
@@ -98,7 +101,7 @@ public class UserService {
     }
 
     public List<UserDto> getUserFriends(long userId) {
-        requireValidUser(userId);
+        userValidator.validateExists(userId);
 
         log.debug("Retrieving friends for user ID: {}", userId);
 
@@ -145,21 +148,8 @@ public class UserService {
             log.error("User {} attempted to interact with themselves", userId);
             throw new ValidationException(SELF_INTERACTION_MESSAGE);
         }
-        requireValidUser(userId);
-        requireValidUser(otherUserId);
-    }
-
-    public boolean isUserExists(long userId) {
-        return userStorage.isExistById(userId);
-    }
-
-    public void requireValidUser(long userId) {
-        if (userId <= 0) {
-            throw new ValidationException(INVALID_USER_ID_MESSAGE);
-        }
-        if (!isUserExists(userId)) {
-            throw new NotFoundException(String.format(USER_NOT_FOUND_MESSAGE, userId));
-        }
+        userValidator.validateExists(userId);
+        userValidator.validateExists(otherUserId);
     }
 
 }

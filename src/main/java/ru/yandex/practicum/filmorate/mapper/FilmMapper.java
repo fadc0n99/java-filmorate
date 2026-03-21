@@ -69,7 +69,7 @@ public final class FilmMapper {
             film.setMpaId(dto.getMpa().getId());
         }
 
-        if (!genreIds.isEmpty()) {
+        if (dto.hasGenres()) {
             film.setGenresIds(genreIds);
         }
 
