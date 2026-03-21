@@ -48,12 +48,12 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     private static final String FIND_POPULAR_FILMS = """
         SELECT f.*
         FROM films f
-        JOIN (
+        LEFT JOIN (
             SELECT film_id, COUNT(*) AS likes_count
             FROM film_likes
             GROUP BY film_id
         ) AS film_stats ON f.id = film_stats.film_id
-        ORDER BY film_stats.likes_count DESC
+        ORDER BY COALESCE(film_stats.likes_count, 0) DESC
         LIMIT ?
         """;
 

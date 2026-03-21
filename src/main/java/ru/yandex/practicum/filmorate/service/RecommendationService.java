@@ -5,9 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.dto.film.FilmDto;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
+import ru.yandex.practicum.filmorate.validation.UserValidator;
 
 import java.util.Collections;
 import java.util.List;
@@ -19,24 +18,22 @@ import java.util.stream.Collectors;
 @Slf4j
 public class RecommendationService {
 
-    private final UserStorage userStorage;
     private final FilmStorage filmStorage;
     // TODO избавиться от зависимости, когда будет отдельный конвертер для ДТО
     private final FilmService filmService;
+    private final UserValidator userValidator;
 
     @Autowired
-    public RecommendationService(@Qualifier("userDbStorage") UserStorage userStorage,
-                                 @Qualifier("filmDbStorage") FilmStorage filmStorage,
-                                 FilmService filmService) {
-        this.userStorage = userStorage;
+    public RecommendationService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
+                                 FilmService filmService,
+                                 UserValidator userValidator) {
         this.filmStorage = filmStorage;
         this.filmService = filmService;
+        this.userValidator = userValidator;
     }
 
     public List<FilmDto> getFilmRecommendationsByUserLikes(long userId) {
-        if (!userStorage.isExistById(userId)) {
-            throw new NotFoundException("User with id " + userId + " not found");
-        }
+        userValidator.validateExists(userId);
 
         List<Long> userLikes = filmStorage.findUserLikedFilmIds(userId);
         List<Long> recommendations = null;
