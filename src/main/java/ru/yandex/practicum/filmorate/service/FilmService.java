@@ -193,7 +193,7 @@ public class FilmService {
         return filmStorage.isLikeExists(filmId, userId);
     }
 
-    public List<FilmDto> getPopularFilms(long count) {
+    public List<FilmDto> getPopularFilms(Integer count, Integer genreId, Integer year) {
         log.debug("Getting top {} popular films", count);
 
         List<Film> popularFilms = filmStorage.getPopularFilms(count, genreId, year);
