@@ -519,20 +519,20 @@ class FilmorateApplicationTests {
         Film film1 = filmStorage.save(Film.builder()
                 .name("Film 1")
                 .description("Description 1")
-                .releaseDate(LocalDate.of(2000, 1, 1))
+                .releaseDate(LocalDate.of(2002, 1, 1))
                 .duration(120)
                 .mpaId(1L)
-                .genresIds(List.of(1L))
+                .genresIds(List.of(3L))
                 .likedUsersFilms(Set.of())
                 .build());
 
         Film film2 = filmStorage.save(Film.builder()
                 .name("Film 2")
                 .description("Description 2")
-                .releaseDate(LocalDate.of(2001, 1, 1))
+                .releaseDate(LocalDate.of(2002, 1, 1))
                 .duration(130)
                 .mpaId(2L)
-                .genresIds(List.of(2L))
+                .genresIds(List.of(3L))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -555,7 +555,7 @@ class FilmorateApplicationTests {
 
         filmStorage.addLike(film1.getId(), user1.getId());
 
-        List<Film> popularFilms = filmStorage.getPopularFilms(3);
+        List<Film> popularFilms = filmStorage.getPopularFilms(3,3,2002);
 
         assertThat(popularFilms).hasSize(3);
 
@@ -572,7 +572,7 @@ class FilmorateApplicationTests {
             Film film = Film.builder()
                     .name("Film " + i)
                     .description("Description " + i)
-                    .releaseDate(LocalDate.of(2000 + i, 1, 1))
+                    .releaseDate(LocalDate.of(2002, 1, 1))
                     .duration(100 + i)
                     .mpaId(1L)
                     .genresIds(List.of(1L))
@@ -582,7 +582,30 @@ class FilmorateApplicationTests {
             filmStorage.addLike(film.getId(), user.getId());
         }
 
-        List<Film> popularFilms = filmStorage.getPopularFilms(3);
+        List<Film> popularFilms = filmStorage.getPopularFilms(3, null, null);
+
+        assertThat(popularFilms).hasSize(3);
+    }
+
+    @Test
+    void testGetPopularFilmsWithLimitGenresYear() {
+        User user = userStorage.save(testUser);
+
+        for (int i = 1; i <= 5; i++) {
+            Film film = Film.builder()
+                    .name("Film " + i)
+                    .description("Description " + i)
+                    .releaseDate(LocalDate.of(2022 , 1, 1))
+                    .duration(100 + i)
+                    .mpaId(1L)
+                    .genresIds(List.of(1L))
+                    .likedUsersFilms(Set.of())
+                    .build();
+            filmStorage.save(film);
+            filmStorage.addLike(film.getId(), user.getId());
+        }
+
+        List<Film> popularFilms = filmStorage.getPopularFilms(3, 1, 2022);
 
         assertThat(popularFilms).hasSize(3);
     }

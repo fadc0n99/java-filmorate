@@ -44,15 +44,18 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     private static final String EXISTS_FILM_BY_ID = "SELECT EXISTS(SELECT 1 FROM films WHERE id = ?)";
 
     private static final String FIND_POPULAR_FILMS = """
-        SELECT f.*
-        FROM films f
-        JOIN (
+        WITH film_likes_stats AS (
             SELECT film_id, COUNT(*) AS likes_count
-            FROM film_likes
-            GROUP BY film_id
-        ) AS film_stats ON f.id = film_stats.film_id
-        ORDER BY film_stats.likes_count DESC
-        LIMIT ?
+              FROM film_likes
+             GROUP BY film_id
+            )
+        SELECT f.*
+          FROM films f
+          LEFT JOIN film_likes_stats fls ON f.id = fls.film_id
+         WHERE (? IS NULL OR EXTRACT(YEAR FROM f.release_date) = ?)
+           AND (? IS NULL OR f.id IN (SELECT film_id FROM film_genres WHERE genre_id = ?))
+         ORDER BY COALESCE(fls.likes_count, 0) DESC
+         LIMIT ?
         """;
 
     /**
@@ -78,6 +81,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     private final NamedParameterJdbcTemplate namedJdbc;
 
+    @Autowired
     public FilmDbStorage(JdbcTemplate jdbc, RowMapper<Film> rowMapper, NamedParameterJdbcTemplate namedJdbc) {
         super(jdbc, rowMapper);
         this.namedJdbc = namedJdbc;
@@ -99,6 +103,9 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     }
 
     private void enrichFilmsGenres(List<Film> films) {
+        if (films == null || films.isEmpty()) {
+            return;
+        }
         List<Long> filmIds = films.stream().map(Film::getId).toList();
 
         Map<Long, List<Long>> filmsGenres = getGenreIdsForFilms(filmIds);
@@ -215,8 +222,8 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     }
 
     @Override
-    public List<Film> getPopularFilms(long limit) {
-        List<Film> popularFilms = findMany(FIND_POPULAR_FILMS, limit);
+    public List<Film> getPopularFilms(Integer count, Integer genreId, Integer year) {
+        List<Film> popularFilms = findMany(FIND_POPULAR_FILMS,  year, year, genreId, genreId, count);
 
         enrichFilmsGenres(popularFilms);
 

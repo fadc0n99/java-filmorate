@@ -196,7 +196,7 @@ public class FilmService {
     public List<FilmDto> getPopularFilms(long count) {
         log.debug("Getting top {} popular films", count);
 
-        List<Film> popularFilms = filmStorage.getPopularFilms(count);
+        List<Film> popularFilms = filmStorage.getPopularFilms(count, genreId, year);
         return convertToDtos(popularFilms);
     }
 

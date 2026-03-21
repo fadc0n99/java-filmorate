@@ -1,6 +1,8 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -90,13 +92,16 @@ public class FilmController {
 
     @GetMapping("/popular")
     public ResponseEntity<List<FilmDto>> handlePopularFilms(
-            @RequestParam(defaultValue = "10") @Positive Integer count) {
+            @RequestParam(defaultValue = "10") @Positive Integer count,
+            @RequestParam(required = false) Integer genreId,
+            @RequestParam(required = false) Integer year) {
         log.debug("Request received: GET /films/popular - retrieving popular films");
 
-        List<FilmDto> popularFilms = filmService.getPopularFilms(count);
+        List<FilmDto> popularFilms = filmService.getPopularFilms(count, genreId, year);
 
-        log.info("Retrieved {} popular films (limit={})", popularFilms.size(), count);
-
+        log.info("Retrieved {} popular films (limit={}, genreId={}, year={})",
+                popularFilms.size(), count, genreId, year);
         return new ResponseEntity<>(popularFilms, HttpStatus.OK);
     }
+
 }
