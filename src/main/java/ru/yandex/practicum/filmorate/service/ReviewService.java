@@ -176,7 +176,7 @@ public class ReviewService {
 
     private void validateNoDuplicateReview(long userId, long filmId) {
         if (reviewDbStorage.existsByUserAndFilm(userId, filmId)) {
-            throw new NotFoundException(ErrorMessages.REVIEW_ALREADY_EXISTS);
+            throw new ValidationException(ErrorMessages.REVIEW_ALREADY_EXISTS);
         }
     }
 }
