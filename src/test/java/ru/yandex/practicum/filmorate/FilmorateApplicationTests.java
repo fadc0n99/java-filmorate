@@ -661,7 +661,7 @@ class FilmorateApplicationTests {
             Film film = Film.builder()
                     .name("Film " + i)
                     .description("Description " + i)
-                    .releaseDate(LocalDate.of(2022 , 1, 1))
+                    .releaseDate(LocalDate.of(2022, 1, 1))
                     .duration(100 + i)
                     .mpaId(1L)
                     .genresIds(List.of(1L))
