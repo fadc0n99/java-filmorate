@@ -42,7 +42,7 @@ public class UpdateFilmDto {
     }
 
     public boolean hasGenres() {
-        return genres != null && !genres.isEmpty();
+        return genres != null;
     }
 
     public boolean hasDirectors() {

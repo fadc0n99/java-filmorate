@@ -53,14 +53,20 @@ public class FilmController {
     @ResponseStatus(HttpStatus.OK)
     public void handleAddFilmLike(@PathVariable(value = "id") long filmId, @PathVariable long userId) {
         log.debug("Request received: PUT /films/{}/like/{} - adding like", filmId, userId);
+
         filmService.addFilmLike(filmId, userId);
+
+        log.info("Like added successfully. Film: {}, User: {}", filmId, userId);
     }
 
     @DeleteMapping("/{id}/like/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void handleRemoveFilmLike(@PathVariable(value = "id") long filmId, @PathVariable long userId) {
         log.debug("Request received: DELETE /films/{}/like/{} - removing like", filmId, userId);
+
         filmService.removeFilmLike(filmId, userId);
+
+        log.info("Like removed successfully. Film: {}, User: {}", filmId, userId);
     }
 
     @GetMapping("/popular")
@@ -78,5 +84,13 @@ public class FilmController {
 
         log.debug("Request received: GET /films/director/{} - sorting by {}", directorId, sortBy);
         return filmService.getFilmsByDirector(directorId, sortBy);
+    }
+
+    @GetMapping("/common")
+    public List<FilmDto> getCommonFilms(
+            @RequestParam Long userId,
+            @RequestParam Long friendId) {
+        log.debug("Request received: GET /films/common?userId={userId}&friendId={friendId} - Returns a list of movies sorted by popularity");
+        return filmService.getCommonFilmsSortedByPopularity(userId, friendId);
     }
 }

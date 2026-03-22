@@ -10,13 +10,20 @@ import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 import ru.yandex.practicum.filmorate.storage.director.DirectorDbStorage;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Repository("filmDbStorage")
 public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
+
+    /**
+     * Film queries
+     */
+    private static final String FIND_ALL_FILMS = "SELECT * FROM films";
+
+    private static final String FIND_FILM_BY_ID = "SELECT * FROM films WHERE id = ?";
+
+    private static final String FIND_FILMS_BY_IDS = "SELECT * FROM films WHERE id in (:filmIds)";
 
     private static final String INSERT_FILM_QUERY = """
             INSERT INTO films (name, description, release_date, duration, mpa_rating_id, created_at)
@@ -25,12 +32,6 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     private static final String UPDATE_FILM_QUERY = """
             UPDATE films SET name = ?, description = ?, release_date = ?, duration = ?, mpa_rating_id = ? 
             WHERE id = ?
-            """;
-    private static final String FIND_POPULAR = """
-            SELECT f.* FROM films f 
-            LEFT JOIN film_likes fl ON f.id = fl.film_id 
-            GROUP BY f.id 
-            ORDER BY COUNT(fl.user_id) DESC LIMIT ?
             """;
     private static final String FIND_BY_DIRECTOR_YEAR = """
             SELECT f.* FROM films f 
@@ -45,23 +46,75 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             GROUP BY f.id ORDER BY COUNT(fl.user_id) DESC
             """;
 
+    private static final String EXISTS_FILM_BY_ID = "SELECT EXISTS(SELECT 1 FROM films WHERE id = ?)";
+
+    private static final String FIND_POPULAR_FILMS = """
+        SELECT f.*
+        FROM films f
+        LEFT JOIN (
+            SELECT film_id, COUNT(*) AS likes_count
+            FROM film_likes
+            GROUP BY film_id
+        ) AS film_stats ON f.id = film_stats.film_id
+        ORDER BY COALESCE(film_stats.likes_count, 0) DESC
+        LIMIT ?
+        """;
+
+    private static final String GET_COMMON_FILMS = """
+        SELECT f.*
+          FROM Films f
+          JOIN film_likes uf1 ON f.id = uf1.film_id AND uf1.user_id = ?
+          JOIN film_likes uf2 ON f.id = uf2.film_id AND uf2.user_id = ?
+          JOIN (
+            SELECT film_id, COUNT(*) AS likes_count
+            FROM film_likes
+            GROUP BY film_id
+            ) AS film_stats ON f.id = film_stats.film_id
+         ORDER BY film_stats.likes_count DESC
+        """;
+
+    /**
+     * Like queries
+     */
+    private static final String INSERT_LIKE_FILM = """
+        INSERT INTO film_likes (film_id, user_id, liked_at)
+        VALUES (?, ?, ?)
+        """;
+
+    private static final String EXIST_USER_LIKE = """
+        SELECT EXISTS(
+            SELECT 1
+            FROM film_likes
+            WHERE film_id = ? AND user_id = ?
+        )
+        """;
+
+    private static final String DELETE_LIKE = """
+        DELETE FROM film_likes
+        WHERE film_id = ? AND user_id = ?
+        """;
+    private static final String USER_LIKES = "SELECT film_id, user_id FROM FILM_LIKES";
+    private static final String USER_LIKES_BY_ID = "SELECT film_id FROM FILM_LIKES WHERE user_id = ?";
+
     private final NamedParameterJdbcTemplate namedJdbc;
 
-    public FilmDbStorage(JdbcTemplate jdbc, NamedParameterJdbcTemplate namedJdbc) {
-        super(jdbc, new FilmRowMapper());
+    public FilmDbStorage(JdbcTemplate jdbc, RowMapper<Film> rowMapper, NamedParameterJdbcTemplate namedJdbc) {
+        super(jdbc, rowMapper);
         this.namedJdbc = namedJdbc;
     }
 
     @Override
     public List<Film> findAll() {
-        List<Film> films = findMany("SELECT * FROM films");
+        List<Film> films = findMany(FIND_ALL_FILMS);
+
         enrichFilmsData(films);
+
         return films;
     }
 
     @Override
     public Optional<Film> findFilmById(long id) {
-        Optional<Film> film = findOne("SELECT * FROM films WHERE id = ?", id);
+        Optional<Film> film = findOne(FIND_FILM_BY_ID, id);
         film.ifPresent(this::enrichFilmData);
         return film;
     }
@@ -95,31 +148,31 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public List<Film> getPopularFilms(long count) {
-        List<Film> films = findMany(FIND_POPULAR, (int) count);
+        List<Film> films = findMany(FIND_POPULAR_FILMS, (int) count);
         enrichFilmsData(films);
         return films;
     }
 
     @Override
     public void addLike(long filmId, long userId) {
-        jdbc.update("INSERT INTO film_likes (film_id, user_id, liked_at) VALUES (?, ?, ?)",
+        jdbc.update(INSERT_LIKE_FILM,
                 filmId, userId, LocalDateTime.now());
     }
 
     @Override
     public void removeLike(long filmId, long userId) {
-        delete("DELETE FROM film_likes WHERE film_id = ? AND user_id = ?", filmId, userId);
+        delete(DELETE_LIKE, filmId, userId);
     }
 
     @Override
     public boolean isLikeExists(long filmId, long userId) {
-        return isExistOne("SELECT EXISTS(SELECT 1 FROM film_likes WHERE film_id = ? AND user_id = ?)",
+        return isExistOne(EXIST_USER_LIKE,
                 filmId, userId);
     }
 
     @Override
     public boolean isExistById(long id) {
-        return isExistOne("SELECT EXISTS(SELECT 1 FROM films WHERE id = ?)", id);
+        return isExistOne(EXISTS_FILM_BY_ID, id);
     }
 
     private void updateRelations(Film film) {
@@ -182,17 +235,40 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         });
     }
 
-    private static class FilmRowMapper implements RowMapper<Film> {
-        @Override
-        public Film mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return Film.builder()
-                    .id(rs.getLong("id"))
-                    .name(rs.getString("name"))
-                    .description(rs.getString("description"))
-                    .releaseDate(rs.getDate("release_date").toLocalDate())
-                    .duration(rs.getInt("duration"))
-                    .mpaId(rs.getLong("mpa_rating_id"))
-                    .build();
-        }
+    @Override
+    public List<Film> getCommonFilms(Long userId, Long friendId) {
+        List<Film> popularFilms = findMany(GET_COMMON_FILMS, userId, friendId);
+
+        enrichFilmsData(popularFilms);
+
+        return popularFilms;
+    }
+
+    @Override
+    public List<Film> findFilmsByIds(List<Long> filmIds) {
+        MapSqlParameterSource params = new MapSqlParameterSource("filmIds", filmIds);
+
+        return namedJdbc.query(FIND_FILMS_BY_IDS, params, rowMapper);
+    }
+
+    @Override
+    public List<Long> findUserLikedFilmIds(long userId) {
+        return jdbc.queryForList(USER_LIKES_BY_ID, Long.class, userId);
+    }
+
+    @Override
+    public Map<Long, List<Long>> findAllUsersLikedFilmIds() {
+        return jdbc.query(USER_LIKES, rs -> {
+            Map<Long, List<Long>> result = new HashMap<>();
+
+            while (rs.next()) {
+                result.computeIfAbsent(
+                        rs.getLong("user_id"),
+                        v -> new ArrayList<>()
+                ).add(rs.getLong("film_id"));
+            }
+
+            return result;
+        });
     }
 }

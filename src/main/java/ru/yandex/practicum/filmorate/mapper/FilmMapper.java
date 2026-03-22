@@ -65,7 +65,7 @@ public final class FilmMapper {
             film.setMpaId(dto.getMpa().getId());
         }
 
-        if (dto.getGenres() != null) {
+        if (dto.hasGenres()) {
             List<Long> genreIds = dto.getGenres().stream()
                     .map(GenreRequestDto::getId)
                     .toList();

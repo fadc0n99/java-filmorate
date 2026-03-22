@@ -47,6 +47,50 @@ public class InMemoryFilmStorage implements FilmStorage {
     }
 
     @Override
+    public void removeLike(long filmId, long userId) {
+        Film film = films.get(filmId);
+        if (film == null) {
+            log.warn("Film with ID {} not found, cannot remove like from user {}", filmId, userId);
+            return;
+        }
+
+        Set<Long> likes = film.getLikedUsersFilms();
+        if (likes != null) {
+            likes.remove(userId);
+        }
+    }
+
+    public Set<Long> getLikes(Long id) {
+        Film film = films.get(id);
+        if (film == null) {
+            return Collections.emptySet();
+        }
+
+        Set<Long> likes = film.getLikedUsersFilms();
+        return likes != null ? likes : Collections.emptySet();
+    }
+
+    @Override
+    public List<Film> getCommonFilms(Long userId, Long friendId) {
+        return new ArrayList<>();
+    }
+
+    @Override
+    public List<Film> findFilmsByIds(List<Long> filmIds) {
+        return List.of();
+    }
+
+    @Override
+    public List<Long> findUserLikedFilmIds(long userId) {
+        return List.of();
+    }
+
+    @Override
+    public Map<Long, List<Long>> findAllUsersLikedFilmIds() {
+        return Map.of();
+    }
+
+    @Override
     public void addLike(long filmId, long userId) {
         Film film = films.get(filmId);
         if (film == null) {
@@ -56,14 +100,6 @@ public class InMemoryFilmStorage implements FilmStorage {
             film.setLikedUsersFilms(new HashSet<>());
         }
         film.getLikedUsersFilms().add(userId);
-    }
-
-    @Override
-    public void removeLike(long filmId, long userId) {
-        Film film = films.get(filmId);
-        if (film != null && film.getLikedUsersFilms() != null) {
-            film.getLikedUsersFilms().remove(userId);
-        }
     }
 
     @Override
