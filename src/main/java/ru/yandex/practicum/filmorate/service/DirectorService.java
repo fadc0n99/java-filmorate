@@ -9,33 +9,44 @@ import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
 
 import java.util.List;
 
-@Slf4j
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class DirectorService {
 
     private final DirectorStorage directorStorage;
 
     public List<Director> findAll() {
+        log.debug("Запрос на получение всех режиссеров");
         return directorStorage.findAll();
     }
 
     public Director findById(Integer id) {
+        log.debug("Запрос на получение режиссера с id: {}", id);
         return directorStorage.findById(id)
                 .orElseThrow(() -> new NotFoundException("Режиссер с id " + id + " не найден"));
     }
 
     public Director create(Director director) {
+        log.debug("Запрос на создание режиссера: {}", director);
         return directorStorage.create(director);
     }
 
     public Director update(Director director) {
-        findById(director.getId());
+        log.debug("Запрос на обновление режиссера: {}", director);
         return directorStorage.update(director);
     }
 
     public void delete(Integer id) {
-        findById(id);
+        log.debug("Запрос на удаление режиссера с id: {}", id);
+        requireExists(id);
         directorStorage.delete(id);
+    }
+
+    public void requireExists(Integer id) {
+        if (!directorStorage.isExistById(id)) {
+            log.warn("Режиссер с id {} не найден", id);
+            throw new NotFoundException("Режиссер с id " + id + " не найден");
+        }
     }
 }

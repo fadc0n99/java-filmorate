@@ -15,4 +15,6 @@ public interface DirectorStorage {
     Director update(Director director);
 
     void delete(Integer id);
+
+    boolean isExistById(Integer id);
 }

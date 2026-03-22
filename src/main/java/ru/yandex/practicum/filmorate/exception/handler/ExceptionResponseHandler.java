@@ -1,5 +1,6 @@
 package ru.yandex.practicum.filmorate.exception.handler;
 
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -21,24 +22,26 @@ public class ExceptionResponseHandler {
         return new ErrorResponse("Not Found", ex.getMessage());
     }
 
-    @ExceptionHandler(ValidationException.class)
+    @ExceptionHandler({ValidationException.class, MethodArgumentNotValidException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleValidationException(ValidationException ex) {
+    public ErrorResponse handleValidationException(Exception ex) {
         log.warn("Ошибка валидации: {}", ex.getMessage());
-        return new ErrorResponse("Validation Error", ex.getMessage());
+        String message = ex instanceof MethodArgumentNotValidException ?
+                "Некорректные параметры в теле запроса" : ex.getMessage();
+        return new ErrorResponse("Validation Error", message);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
-        log.warn("Ошибка валидации данных в теле запроса: {}", ex.getMessage());
-        return new ErrorResponse("Validation Error", "Некорректные параметры запроса");
+    public ErrorResponse handleConstraintViolationException(ConstraintViolationException ex) {
+        log.warn("Ошибка валидации параметров запроса: {}", ex.getMessage());
+        return new ErrorResponse("Validation Error", ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleThrowable(final Exception e) {
         log.error("Произошла непредвиденная ошибка: ", e);
-        return new ErrorResponse("Internal Server Error", e.getMessage());
+        return new ErrorResponse("Internal Server Error", "Произошла внутренняя ошибка сервера");
     }
 }

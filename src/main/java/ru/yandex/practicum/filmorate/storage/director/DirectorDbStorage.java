@@ -1,78 +1,62 @@
 package ru.yandex.practicum.filmorate.storage.director;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.stereotype.Component;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Director;
+import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
-@Component
-@RequiredArgsConstructor
-public class DirectorDbStorage implements DirectorStorage {
+@Repository("directorDbStorage")
+public class DirectorDbStorage extends BaseDbStorage<Director> implements DirectorStorage {
 
-    private final JdbcTemplate jdbcTemplate;
+    public static final RowMapper<Director> DIRECTOR_MAPPER = (rs, rowNum) -> Director.builder()
+            .id(rs.getInt("director_id"))
+            .name(rs.getString("director_name"))
+            .build();
+
+    public DirectorDbStorage(JdbcTemplate jdbc) {
+        super(jdbc, DIRECTOR_MAPPER);
+    }
 
     @Override
     public List<Director> findAll() {
         String sql = "SELECT * FROM directors ORDER BY director_id";
-        return jdbcTemplate.query(sql, this::mapRowToDirector);
+        return findMany(sql);
     }
 
     @Override
     public Optional<Director> findById(Integer id) {
         String sql = "SELECT * FROM directors WHERE director_id = ?";
-        try {
-            Director director = jdbcTemplate.queryForObject(sql, this::mapRowToDirector, id);
-            return Optional.ofNullable(director);
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
+        return findOne(sql, id);
     }
 
     @Override
     public Director create(Director director) {
         String sql = "INSERT INTO directors (director_name) VALUES (?)";
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-
-        jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(sql, new String[]{"director_id"});
-            ps.setString(1, director.getName());
-            return ps;
-        }, keyHolder);
-
-        director.setId(Objects.requireNonNull(keyHolder.getKey()).intValue());
+        long id = insert(sql, director.getName());
+        director.setId((int) id);
         return director;
     }
 
     @Override
     public Director update(Director director) {
         String sql = "UPDATE directors SET director_name = ? WHERE director_id = ?";
-        int updatedRows = jdbcTemplate.update(sql, director.getName(), director.getId());
-        if (updatedRows == 0) {
-            return null;
-        }
+        update(sql, director.getName(), director.getId());
         return director;
     }
 
     @Override
     public void delete(Integer id) {
         String sql = "DELETE FROM directors WHERE director_id = ?";
-        jdbcTemplate.update(sql, id);
+        super.delete(sql, id);
     }
 
-    private Director mapRowToDirector(ResultSet rs, int rowNum) throws SQLException {
-        return Director.builder()
-                .id(rs.getInt("director_id"))
-                .name(rs.getString("director_name"))
-                .build();
+    @Override
+    public boolean isExistById(Integer id) {
+        String sql = "SELECT EXISTS(SELECT 1 FROM directors WHERE director_id = ?)";
+        return isExistOne(sql, id);
     }
 }

@@ -1,24 +1,20 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Component
-@RequiredArgsConstructor
 @Slf4j
 public class InMemoryFilmStorage implements FilmStorage {
 
-    private final Map<Long, Film> films;
+    private final Map<Long, Film> films = new HashMap<>();
 
     @Override
     public List<Film> findAll() {
-        return films.values().stream().toList();
+        return new ArrayList<>(films.values());
     }
 
     @Override
@@ -26,12 +22,17 @@ public class InMemoryFilmStorage implements FilmStorage {
         long newId = generateId();
         newFilm.setId(newId);
         films.put(newId, newFilm);
+        log.debug("Фильм сохранен в памяти: {}", newFilm);
         return newFilm;
     }
 
     @Override
     public Film update(Film newFilm) {
+        if (!films.containsKey(newFilm.getId())) {
+            throw new NotFoundException("Фильм с ID " + newFilm.getId() + " не найден");
+        }
         films.put(newFilm.getId(), newFilm);
+        log.debug("Фильм обновлен в памяти: {}", newFilm);
         return newFilm;
     }
 
@@ -51,24 +52,17 @@ public class InMemoryFilmStorage implements FilmStorage {
         if (film == null) {
             throw new NotFoundException("Film with ID " + filmId + " not found");
         }
-        Set<Long> likes = film.getLikedUsersFilms();
-        if (likes == null) {
-            likes = new HashSet<>();
-            film.setLikedUsersFilms(likes);
+        if (film.getLikedUsersFilms() == null) {
+            film.setLikedUsersFilms(new HashSet<>());
         }
-        likes.add(userId);
+        film.getLikedUsersFilms().add(userId);
     }
 
     @Override
     public void removeLike(long filmId, long userId) {
         Film film = films.get(filmId);
-        if (film == null) {
-            log.warn("Film with ID {} not found", filmId);
-            return;
-        }
-        Set<Long> likes = film.getLikedUsersFilms();
-        if (likes != null) {
-            likes.remove(userId);
+        if (film != null && film.getLikedUsersFilms() != null) {
+            film.getLikedUsersFilms().remove(userId);
         }
     }
 
@@ -91,10 +85,11 @@ public class InMemoryFilmStorage implements FilmStorage {
         List<Film> directorFilms = films.values().stream()
                 .filter(film -> film.getDirectors() != null &&
                         film.getDirectors().stream().anyMatch(d -> d.getId() == directorId))
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(ArrayList::new));
 
         if ("year".equalsIgnoreCase(sortBy)) {
-            directorFilms.sort(Comparator.comparing(Film::getReleaseDate));
+            directorFilms.sort(Comparator.comparing(Film::getReleaseDate,
+                    Comparator.nullsLast(Comparator.naturalOrder())));
         } else if ("likes".equalsIgnoreCase(sortBy)) {
             directorFilms.sort((f1, f2) -> Integer.compare(getLikesCount(f2), getLikesCount(f1)));
         }
