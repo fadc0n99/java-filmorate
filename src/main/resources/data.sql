@@ -1,5 +1,5 @@
 -- Данные для рейтингов
-INSERT INTO mpa_ratings (name, description)
+INSERT INTO mpa_ratings (mpa_name, description)
 SELECT * FROM (VALUES
     ('G', 'Нет возрастных ограничений'),
     ('PG', 'Рекомендуется присутствие родителей'),

@@ -21,19 +21,20 @@ import java.util.stream.Collectors;
 public class MpaService {
 
     private final MpaStorage mpaStorage;
+    private final MpaMapper mpaMapper;
 
     private static final String MPA_NOT_FOUND_MESSAGE = "MPA rating with ID %d not found";
 
     public List<MpaDto> findAllMpa() {
         return mpaStorage.findAll()
                 .stream()
-                .map(MpaMapper::mpaToMpaDto)
+                .map(mpaMapper::toDto)
                 .toList();
     }
 
     public MpaDto findMpaById(long id) {
         return mpaStorage.findById(id)
-                .map(MpaMapper::mpaToMpaDto)
+                .map(mpaMapper::toDto)
                 .orElseThrow(() -> new NotFoundException(String.format(MPA_NOT_FOUND_MESSAGE, id)));
     }
 
@@ -52,7 +53,7 @@ public class MpaService {
                 .stream()
                 .collect(Collectors.toMap(
                    Map.Entry::getKey,
-                   entry -> MpaMapper.mpaToMpaDto(entry.getValue())
+                   entry -> mpaMapper.toDto(entry.getValue())
                 ));
     }
 }

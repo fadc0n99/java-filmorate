@@ -3,7 +3,9 @@ package ru.yandex.practicum.filmorate.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.dto.director.DirectorDto;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.mapper.DirectorMapper;
 import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
 
@@ -27,23 +29,29 @@ public class DirectorService {
                 .orElseThrow(() -> new NotFoundException("Режиссер с id " + id + " не найден"));
     }
 
-    public Director create(Director director) {
-        log.debug("Запрос на создание режиссера: {}", director);
+    public Director create(DirectorDto directorDto) {
+        log.debug("Запрос на создание режиссера: {}", directorDto);
+
+        Director director = DirectorMapper.toEntity(directorDto);
+
         return directorStorage.create(director);
     }
 
-    public Director update(Director director) {
-        log.debug("Запрос на обновление режиссера: {}", director);
+    public Director update(DirectorDto directorDto) {
+        log.debug("Запрос на обновление режиссера: {}", directorDto);
+
+        Director director = DirectorMapper.toEntity(directorDto);
+
         return directorStorage.update(director);
     }
 
     public void delete(Integer id) {
         log.debug("Запрос на удаление режиссера с id: {}", id);
-        requireExists(id);
+        validateDirectorExists(id);
         directorStorage.delete(id);
     }
 
-    public void requireExists(Integer id) {
+    public void validateDirectorExists(Integer id) {
         if (!directorStorage.isExistById(id)) {
             log.warn("Режиссер с id {} не найден", id);
             throw new NotFoundException("Режиссер с id " + id + " не найден");

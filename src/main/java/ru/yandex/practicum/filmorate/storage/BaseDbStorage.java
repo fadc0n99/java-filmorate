@@ -41,20 +41,21 @@ public abstract class BaseDbStorage<T> {
             return ps;
         }, keyHolder);
 
-        Number key = keyHolder.getKey();
-
-        if (key != null) {
-            return key.longValue();
-        } else {
-            throw new RuntimeException("Ошибка при записи данных: ID не получен");
-        }
+        return Optional.ofNullable(keyHolder.getKey())
+                .map(Number::longValue)
+                .orElseThrow(() ->
+                        new IllegalStateException("Failed to retrieve generated key during insert operation"));
     }
 
     protected void update(String query, Object... params) {
         int updatedRows = jdbc.update(query, params);
         if (updatedRows == 0) {
-            throw new NotFoundException("Данные для обновления не найдены");
+            throw new NotFoundException("No record found to update");
         }
+    }
+
+    protected void updateWithoutCheck(String query, Object... params) {
+        jdbc.update(query, params);
     }
 
     protected boolean delete(String query, Object... params) {

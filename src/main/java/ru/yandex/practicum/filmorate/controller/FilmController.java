@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -78,7 +79,7 @@ public class FilmController {
 
     @GetMapping("/director/{directorId}")
     public List<FilmDto> handleGetFilmsByDirector(
-            @PathVariable Integer directorId,
+            @PathVariable @NotNull Integer directorId,
             @RequestParam @Pattern(regexp = "year|likes",
                     message = "Сортировка возможна только по 'year' или 'likes'") String sortBy) {
 

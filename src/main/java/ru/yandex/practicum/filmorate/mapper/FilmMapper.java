@@ -1,45 +1,54 @@
 package ru.yandex.practicum.filmorate.mapper;
 
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.dto.film.CreateFilmDto;
 import ru.yandex.practicum.filmorate.dto.film.FilmDto;
 import ru.yandex.practicum.filmorate.dto.film.UpdateFilmDto;
-import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
-import ru.yandex.practicum.filmorate.dto.mpa.MpaDto;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.model.Mpa;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@Component
+@RequiredArgsConstructor
 public final class FilmMapper {
 
-    public static Film toFilm(CreateFilmDto requestDto) {
-        List<Long> genreIds = requestDto.getGenres() != null ?
-                requestDto.getGenres().stream().map(GenreRequestDto::getId).toList() : new ArrayList<>();
+    private final MpaMapper mpaMapper;
+
+    public static Film toEntity(CreateFilmDto requestDto) {
+        List<Genre> genres = requestDto.getGenres() != null ?
+                requestDto.getGenres().stream()
+                        .map(genreDto -> Genre.builder()
+                                .id(genreDto.getId())
+                                .build())
+                        .toList() :
+                new ArrayList<>();
 
         return Film.builder()
                 .name(requestDto.getName())
                 .description(requestDto.getDescription())
                 .releaseDate(requestDto.getReleaseDate())
                 .duration(requestDto.getDuration())
-                .mpaId(requestDto.getMpa().getId())
-                .genresIds(genreIds)
+                .mpa(Mpa.builder()
+                        .id(requestDto.getMpa().getId())
+                        .build())
+                .genres(genres)
                 .directors(requestDto.getDirectors() != null ? requestDto.getDirectors() : new ArrayList<>())
                 .build();
     }
 
-    public static FilmDto toDto(Film film, MpaDto mpaDto, List<Genre> genres) {
+    public FilmDto toDto(Film film) {
         return FilmDto.builder()
                 .id(film.getId())
                 .name(film.getName())
                 .description(film.getDescription())
                 .releaseDate(film.getReleaseDate())
                 .duration(film.getDuration())
-                .mpa(mpaDto)
-                .genres(genres)
+                .mpa(mpaMapper.toDto(film.getMpa()))
+                .genres(film.getGenres())
                 .directors(film.getDirectors())
                 .build();
     }
@@ -62,14 +71,19 @@ public final class FilmMapper {
         }
 
         if (dto.hasMpa()) {
-            film.setMpaId(dto.getMpa().getId());
+            Mpa mpa = Mpa.builder()
+                    .id(dto.getMpa().getId())
+                    .build();
+            film.setMpa(mpa);
         }
 
         if (dto.hasGenres()) {
-            List<Long> genreIds = dto.getGenres().stream()
-                    .map(GenreRequestDto::getId)
+            List<Genre> genres = dto.getGenres().stream()
+                    .map(genreDto -> Genre.builder()
+                            .id(genreDto.getId())
+                            .build())
                     .toList();
-            film.setGenresIds(genreIds);
+            film.setGenres(genres);
         }
 
         if (dto.getDirectors() != null) {

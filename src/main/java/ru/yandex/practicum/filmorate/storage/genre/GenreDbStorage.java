@@ -23,6 +23,7 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
             WHERE fg.film_id IN (:filmIds)
             ORDER BY id
             """;
+    private static final String EXISTS_GENRES = "";
 
     private final NamedParameterJdbcTemplate namedJdbc;
 
@@ -82,5 +83,15 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
 
             return result;
         });
+    }
+
+    @Override
+    public boolean isExistById(long id) {
+        return isExistOne(EXISTS_GENRES, id);
+    }
+
+    @Override
+    public boolean isExistByIds(List<Long> ids) {
+        return !findGenresByIds(ids).isEmpty();
     }
 }

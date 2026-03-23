@@ -20,8 +20,8 @@ public class Film {
     private String description;
     private LocalDate releaseDate;
     private Integer duration;
-    private Long mpaId;
-    private List<Long> genresIds;
+    private Mpa mpa;
+    private List<Genre> genres;
     private Set<Long> likedUsersFilms;
     private List<Director> directors;
 }

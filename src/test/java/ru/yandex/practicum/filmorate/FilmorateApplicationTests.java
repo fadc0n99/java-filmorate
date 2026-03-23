@@ -7,10 +7,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
-import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.model.Genre;
-import ru.yandex.practicum.filmorate.model.Mpa;
-import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.model.*;
+import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
@@ -32,17 +30,20 @@ class FilmorateApplicationTests {
     private final FilmStorage filmStorage;
     private final GenreStorage genreStorage;
     private final MpaStorage mpaStorage;
+    private final DirectorStorage directorStorage;
 
     @Autowired
     public FilmorateApplicationTests(
             @Qualifier("userDbStorage") UserStorage userStorage,
             @Qualifier("filmDbStorage") FilmStorage filmStorage,
             GenreStorage genreStorage,
-            MpaStorage mpaStorage) {
+            MpaStorage mpaStorage,
+            DirectorStorage directorStorage) {
         this.userStorage = userStorage;
         this.filmStorage = filmStorage;
         this.genreStorage = genreStorage;
         this.mpaStorage = mpaStorage;
+        this.directorStorage = directorStorage;
     }
 
     private User testUser;
@@ -63,8 +64,8 @@ class FilmorateApplicationTests {
                 .description("Test Description")
                 .releaseDate(LocalDate.of(2000, 1, 1))
                 .duration(120)
-                .mpaId(1L)
-                .genresIds(List.of(1L))
+                .mpa(Mpa.builder().id(1L).build())
+                .genres(List.of(Genre.builder().id(1L).build()))
                 .likedUsersFilms(Set.of())
                 .build();
     }
@@ -285,8 +286,9 @@ class FilmorateApplicationTests {
         assertThat(created.getDescription()).isEqualTo(testFilm.getDescription());
         assertThat(created.getReleaseDate()).isEqualTo(testFilm.getReleaseDate());
         assertThat(created.getDuration()).isEqualTo(testFilm.getDuration());
-        assertThat(created.getMpaId()).isEqualTo(testFilm.getMpaId());
-        assertThat(created.getGenresIds()).hasSize(1).containsExactly(1L);
+        assertThat(created.getMpa().getId()).isEqualTo(testFilm.getMpa().getId());
+        assertThat(created.getGenres()).hasSize(1);
+        assertThat(created.getGenres().get(0).getId()).isEqualTo(1L);
         assertThat(created.getLikedUsersFilms()).isNotNull().isEmpty();
     }
 
@@ -297,15 +299,19 @@ class FilmorateApplicationTests {
                 .description("Description")
                 .releaseDate(LocalDate.of(2000, 1, 1))
                 .duration(120)
-                .mpaId(1L)
-                .genresIds(List.of(1L, 3L, 5L))
+                .mpa(Mpa.builder().id(1L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(3L).build(),
+                        Genre.builder().id(5L).build()
+                ))
                 .likedUsersFilms(Set.of())
                 .build();
 
         Film created = filmStorage.save(filmWithGenres);
 
-        assertThat(created.getGenresIds()).hasSize(3);
-        assertThat(created.getGenresIds())
+        assertThat(created.getGenres()).hasSize(3);
+        assertThat(created.getGenres().stream().map(Genre::getId))
                 .containsExactlyInAnyOrder(1L, 3L, 5L);
     }
 
@@ -317,8 +323,8 @@ class FilmorateApplicationTests {
                 .description(longDescription)
                 .releaseDate(LocalDate.of(2000, 1, 1))
                 .duration(120)
-                .mpaId(1L)
-                .genresIds(List.of())
+                .mpa(Mpa.builder().id(1L).build())
+                .genres(List.of())
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -332,8 +338,8 @@ class FilmorateApplicationTests {
                 .description("Description")
                 .releaseDate(LocalDate.of(2000, 1, 1))
                 .duration(-120)
-                .mpaId(1L)
-                .genresIds(List.of())
+                .mpa(Mpa.builder().id(1L).build())
+                .genres(List.of())
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -347,8 +353,8 @@ class FilmorateApplicationTests {
                 .description("Description")
                 .releaseDate(LocalDate.of(2000, 1, 1))
                 .duration(120)
-                .mpaId(10L)
-                .genresIds(List.of())
+                .mpa(Mpa.builder().id(999L).build())
+                .genres(List.of())
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -365,7 +371,7 @@ class FilmorateApplicationTests {
                 .hasValueSatisfying(film -> {
                     assertThat(film.getId()).isEqualTo(created.getId());
                     assertThat(film.getName()).isEqualTo(created.getName());
-                    assertThat(film.getGenresIds()).hasSize(1);
+                    assertThat(film.getGenres()).hasSize(1);
                 });
     }
 
@@ -379,8 +385,11 @@ class FilmorateApplicationTests {
                 .description("Updated Description")
                 .releaseDate(LocalDate.of(2005, 5, 5))
                 .duration(150)
-                .mpaId(3L)
-                .genresIds(List.of(2L, 4L))
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(2L).build(),
+                        Genre.builder().id(4L).build()
+                ))
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -391,21 +400,35 @@ class FilmorateApplicationTests {
         assertThat(result.getDescription()).isEqualTo("Updated Description");
         assertThat(result.getReleaseDate()).isEqualTo(LocalDate.of(2005, 5, 5));
         assertThat(result.getDuration()).isEqualTo(150);
-        assertThat(result.getMpaId()).isEqualTo(3L);
-        assertThat(result.getGenresIds()).hasSize(2).containsExactlyInAnyOrder(2L, 4L);
+        assertThat(result.getMpa().getId()).isEqualTo(3L);
+        assertThat(result.getGenres()).hasSize(2);
+        assertThat(result.getGenres().stream().map(Genre::getId))
+                .containsExactlyInAnyOrder(2L, 4L);
     }
 
     @Test
     void testUpdateFilmGenres() {
         Film created = filmStorage.save(testFilm);
 
-        Film updatedFilm = created.toBuilder()
-                .genresIds(List.of(2L, 3L, 5L))
+        Film updatedFilm = Film.builder()
+                .id(created.getId())
+                .name(created.getName())
+                .description(created.getDescription())
+                .releaseDate(created.getReleaseDate())
+                .duration(created.getDuration())
+                .mpa(created.getMpa())
+                .genres(List.of(
+                        Genre.builder().id(2L).build(),
+                        Genre.builder().id(3L).build(),
+                        Genre.builder().id(5L).build()
+                ))
+                .likedUsersFilms(Set.of())
                 .build();
 
         Film result = filmStorage.update(updatedFilm);
 
-        assertThat(result.getGenresIds()).hasSize(3)
+        assertThat(result.getGenres()).hasSize(3);
+        assertThat(result.getGenres().stream().map(Genre::getId))
                 .containsExactlyInAnyOrder(2L, 3L, 5L);
     }
 
@@ -413,13 +436,20 @@ class FilmorateApplicationTests {
     void testUpdateFilmRemoveAllGenres() {
         Film created = filmStorage.save(testFilm);
 
-        Film updatedFilm = created.toBuilder()
-                .genresIds(List.of())
+        Film updatedFilm = Film.builder()
+                .id(created.getId())
+                .name(created.getName())
+                .description(created.getDescription())
+                .releaseDate(created.getReleaseDate())
+                .duration(created.getDuration())
+                .mpa(created.getMpa())
+                .genres(List.of())
+                .likedUsersFilms(Set.of())
                 .build();
 
         Film result = filmStorage.update(updatedFilm);
 
-        assertThat(result.getGenresIds()).isEmpty();
+        assertThat(result.getGenres()).isEmpty();
     }
 
     @Test
@@ -430,8 +460,8 @@ class FilmorateApplicationTests {
                 .description("Description")
                 .releaseDate(LocalDate.of(2000, 1, 1))
                 .duration(120)
-                .mpaId(1L)
-                .genresIds(List.of())
+                .mpa(Mpa.builder().id(1L).build())
+                .genres(List.of())
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -446,15 +476,15 @@ class FilmorateApplicationTests {
                 .description("Description 2")
                 .releaseDate(LocalDate.of(2005, 1, 1))
                 .duration(150)
-                .mpaId(2L)
-                .genresIds(List.of(2L))
+                .mpa(Mpa.builder().id(2L).build())
+                .genres(List.of(Genre.builder().id(2L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
         List<Film> films = filmStorage.findAll();
 
         assertThat(films).hasSize(2);
-        films.forEach(film -> assertThat(film.getGenresIds()).isNotNull());
+        films.forEach(film -> assertThat(film.getGenres()).isNotNull());
     }
 
     @Test
@@ -521,8 +551,8 @@ class FilmorateApplicationTests {
                 .description("Description 1")
                 .releaseDate(LocalDate.of(2000, 1, 1))
                 .duration(120)
-                .mpaId(1L)
-                .genresIds(List.of(1L))
+                .mpa(Mpa.builder().id(1L).build())
+                .genres(List.of(Genre.builder().id(1L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -531,8 +561,8 @@ class FilmorateApplicationTests {
                 .description("Description 2")
                 .releaseDate(LocalDate.of(2001, 1, 1))
                 .duration(130)
-                .mpaId(2L)
-                .genresIds(List.of(2L))
+                .mpa(Mpa.builder().id(2L).build())
+                .genres(List.of(Genre.builder().id(2L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -541,8 +571,8 @@ class FilmorateApplicationTests {
                 .description("Description 3")
                 .releaseDate(LocalDate.of(2002, 1, 1))
                 .duration(140)
-                .mpaId(3L)
-                .genresIds(List.of(3L))
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(Genre.builder().id(3L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -565,7 +595,7 @@ class FilmorateApplicationTests {
     }
 
     @Test
-    void testGetСommonFilms() {
+    void testGetCommonFilms() {
         User user1 = userStorage.save(testUser);
         User user2 = userStorage.save(User.builder()
                 .email("user2@test.com")
@@ -587,8 +617,8 @@ class FilmorateApplicationTests {
                 .description("Description 1")
                 .releaseDate(LocalDate.of(2000, 1, 1))
                 .duration(120)
-                .mpaId(1L)
-                .genresIds(List.of(1L))
+                .mpa(Mpa.builder().id(1L).build())
+                .genres(List.of(Genre.builder().id(1L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -597,8 +627,8 @@ class FilmorateApplicationTests {
                 .description("Description 2")
                 .releaseDate(LocalDate.of(2001, 1, 1))
                 .duration(130)
-                .mpaId(2L)
-                .genresIds(List.of(2L))
+                .mpa(Mpa.builder().id(2L).build())
+                .genres(List.of(Genre.builder().id(2L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -607,8 +637,8 @@ class FilmorateApplicationTests {
                 .description("Description 3")
                 .releaseDate(LocalDate.of(2002, 1, 1))
                 .duration(140)
-                .mpaId(3L)
-                .genresIds(List.of(3L))
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(Genre.builder().id(3L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -629,7 +659,6 @@ class FilmorateApplicationTests {
         assertThat(commonFilms.get(1).getId()).isEqualTo(film3.getId());
     }
 
-
     @Test
     void testGetPopularFilmsWithLimit() {
         User user = userStorage.save(testUser);
@@ -640,8 +669,8 @@ class FilmorateApplicationTests {
                     .description("Description " + i)
                     .releaseDate(LocalDate.of(2000 + i, 1, 1))
                     .duration(100 + i)
-                    .mpaId(1L)
-                    .genresIds(List.of(1L))
+                    .mpa(Mpa.builder().id(1L).build())
+                    .genres(List.of(Genre.builder().id(1L).build()))
                     .likedUsersFilms(Set.of())
                     .build();
             filmStorage.save(film);
@@ -736,5 +765,226 @@ class FilmorateApplicationTests {
         assertThat(genres).hasSize(2);
         assertThat(genres.stream().map(Genre::getId))
                 .containsExactlyInAnyOrder(1L, 3L);
+    }
+
+    // ==================== TESTS FOR DIRECTORS ====================
+
+    @Test
+    void testUpdateFilm_WhenDirectorsFieldNotProvided_ShouldRemoveDirectors() {
+        Director director = Director.builder()
+                .name("Christopher Nolan")
+                .build();
+        Director savedDirector = directorStorage.create(director);
+
+        Film filmWithDirector = Film.builder()
+                .name("Inception")
+                .description("A mind-bending thriller")
+                .releaseDate(LocalDate.of(2010, 7, 16))
+                .duration(148)
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(2L).build()
+                ))
+                .directors(List.of(savedDirector))
+                .likedUsersFilms(Set.of())
+                .build();
+
+        Film createdFilm = filmStorage.save(filmWithDirector);
+
+        Optional<Film> filmAfterCreate = filmStorage.findFilmById(createdFilm.getId());
+        assertThat(filmAfterCreate).isPresent();
+        assertThat(filmAfterCreate.get().getDirectors()).isNotEmpty();
+
+        Film updatedFilm = Film.builder()
+                .id(createdFilm.getId())
+                .name("Inception Updated")
+                .description("Updated description")
+                .releaseDate(LocalDate.of(2010, 7, 16))
+                .duration(148)
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(2L).build()
+                ))
+                .likedUsersFilms(Set.of())
+                .build();
+
+        Film result = filmStorage.update(updatedFilm);
+
+        assertThat(result.getDirectors()).isNotNull();
+        assertThat(result.getDirectors()).isEmpty();
+
+        Optional<Film> filmAfterUpdate = filmStorage.findFilmById(createdFilm.getId());
+        assertThat(filmAfterUpdate).isPresent();
+        assertThat(filmAfterUpdate.get().getDirectors()).isEmpty();
+    }
+
+    @Test
+    void testUpdateFilm_WhenDirectorsFieldIsEmptyList_ShouldRemoveAllDirectors() {
+        Director director = Director.builder()
+                .name("Christopher Nolan")
+                .build();
+        Director savedDirector = directorStorage.create(director);
+
+        Film filmWithDirector = Film.builder()
+                .name("Inception")
+                .description("A mind-bending thriller")
+                .releaseDate(LocalDate.of(2010, 7, 16))
+                .duration(148)
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(2L).build()
+                ))
+                .directors(List.of(savedDirector))
+                .likedUsersFilms(Set.of())
+                .build();
+
+        Film createdFilm = filmStorage.save(filmWithDirector);
+
+        Film updatedFilm = Film.builder()
+                .id(createdFilm.getId())
+                .name("Inception Updated")
+                .description("Updated description")
+                .releaseDate(LocalDate.of(2010, 7, 16))
+                .duration(148)
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(2L).build()
+                ))
+                .directors(List.of())
+                .likedUsersFilms(Set.of())
+                .build();
+
+        Film result = filmStorage.update(updatedFilm);
+
+        assertThat(result.getDirectors()).isEmpty();
+    }
+
+    @Test
+    void testUpdateFilm_WhenDirectorsFieldHasNewDirector_ShouldReplaceDirectors() {
+        Director director1 = Director.builder()
+                .name("Christopher Nolan")
+                .build();
+        Director savedDirector1 = directorStorage.create(director1);
+
+        Director director2 = Director.builder()
+                .name("Jonathan Nolan")
+                .build();
+        Director savedDirector2 = directorStorage.create(director2);
+
+        Film filmWithDirector = Film.builder()
+                .name("Inception")
+                .description("A mind-bending thriller")
+                .releaseDate(LocalDate.of(2010, 7, 16))
+                .duration(148)
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(2L).build()
+                ))
+                .directors(List.of(savedDirector1))
+                .likedUsersFilms(Set.of())
+                .build();
+
+        Film createdFilm = filmStorage.save(filmWithDirector);
+
+        Film updatedFilm = Film.builder()
+                .id(createdFilm.getId())
+                .name("Inception")
+                .description("A mind-bending thriller")
+                .releaseDate(LocalDate.of(2010, 7, 16))
+                .duration(148)
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(2L).build()
+                ))
+                .directors(List.of(savedDirector2))
+                .likedUsersFilms(Set.of())
+                .build();
+
+        Film result = filmStorage.update(updatedFilm);
+
+        assertThat(result.getDirectors()).hasSize(1);
+        assertThat(result.getDirectors().get(0).getId()).isEqualTo(savedDirector2.getId());
+    }
+
+    @Test
+    void testCreateFilmWithDirectors() {
+        Director director = Director.builder()
+                .name("Christopher Nolan")
+                .build();
+        Director savedDirector = directorStorage.create(director);
+
+        Film filmWithDirector = Film.builder()
+                .name("Inception")
+                .description("A mind-bending thriller")
+                .releaseDate(LocalDate.of(2010, 7, 16))
+                .duration(148)
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(2L).build()
+                ))
+                .directors(List.of(savedDirector))
+                .likedUsersFilms(Set.of())
+                .build();
+
+        Film createdFilm = filmStorage.save(filmWithDirector);
+
+        assertThat(createdFilm.getId()).isNotNull();
+        assertThat(createdFilm.getDirectors()).isNotEmpty();
+        assertThat(createdFilm.getDirectors().get(0).getId()).isEqualTo(savedDirector.getId());
+        assertThat(createdFilm.getDirectors().get(0).getName()).isEqualTo("Christopher Nolan");
+    }
+
+    @Test
+    void testUpdateFilmPreservesMpaAndGenresWhenDirectorsRemoved() {
+        Director director = Director.builder()
+                .name("Christopher Nolan")
+                .build();
+        Director savedDirector = directorStorage.create(director);
+
+        Film filmWithDirector = Film.builder()
+                .name("Inception")
+                .description("A mind-bending thriller")
+                .releaseDate(LocalDate.of(2010, 7, 16))
+                .duration(148)
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(2L).build()
+                ))
+                .directors(List.of(savedDirector))
+                .likedUsersFilms(Set.of())
+                .build();
+
+        Film createdFilm = filmStorage.save(filmWithDirector);
+
+        Film updatedFilm = Film.builder()
+                .id(createdFilm.getId())
+                .name("Inception Updated")
+                .description("Updated description")
+                .releaseDate(LocalDate.of(2010, 7, 16))
+                .duration(148)
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(2L).build()
+                ))
+                .directors(List.of())
+                .likedUsersFilms(Set.of())
+                .build();
+
+        Film result = filmStorage.update(updatedFilm);
+
+        assertThat(result.getDirectors()).isEmpty();
+        assertThat(result.getMpa().getId()).isEqualTo(3L);
+        assertThat(result.getGenres()).hasSize(2);
+        assertThat(result.getGenres().stream().map(Genre::getId))
+                .containsExactlyInAnyOrder(1L, 2L);
     }
 }

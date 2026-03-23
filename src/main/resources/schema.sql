@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Таблица с возрастными рейтингами
 CREATE TABLE IF NOT EXISTS mpa_ratings (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(5) UNIQUE NOT NULL,
+    mpa_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    mpa_name VARCHAR(5) UNIQUE NOT NULL,
     description VARCHAR(200)
 );
 
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS films (
     duration INTEGER NOT NULL CHECK (duration > 0),
     mpa_rating_id BIGINT NOT NULL,
     created_at TIMESTAMP,
-    FOREIGN KEY (mpa_rating_id) REFERENCES mpa_ratings(id) ON DELETE RESTRICT
+    FOREIGN KEY (mpa_rating_id) REFERENCES mpa_ratings(mpa_id) ON DELETE RESTRICT
 );
 
 -- Таблица с жанрами

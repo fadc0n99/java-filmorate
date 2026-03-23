@@ -12,13 +12,10 @@ import java.util.Optional;
 @Repository("directorDbStorage")
 public class DirectorDbStorage extends BaseDbStorage<Director> implements DirectorStorage {
 
-    public static final RowMapper<Director> DIRECTOR_MAPPER = (rs, rowNum) -> Director.builder()
-            .id(rs.getInt("director_id"))
-            .name(rs.getString("director_name"))
-            .build();
 
-    public DirectorDbStorage(JdbcTemplate jdbc) {
-        super(jdbc, DIRECTOR_MAPPER);
+    public DirectorDbStorage(JdbcTemplate jdbc,
+                             RowMapper<Director> rowMapper) {
+        super(jdbc, rowMapper);
     }
 
     @Override
