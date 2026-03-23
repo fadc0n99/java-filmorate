@@ -16,4 +16,8 @@ public interface GenreStorage {
     List<Long> findGenreIdsByIds(List<Long> genreIds);
 
     Map<Long, List<Genre>> findGenresByFilmIds(List<Long> filmIds);
+
+    boolean isExistById(long id);
+
+    boolean isExistByIds(List<Long> ids);
 }

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.Data;
 import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
 import ru.yandex.practicum.filmorate.dto.mpa.MpaRequestDto;
+import ru.yandex.practicum.filmorate.model.Director;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -18,6 +19,7 @@ public class UpdateFilmDto {
     private Integer duration;
     private MpaRequestDto mpa;
     private List<GenreRequestDto> genres;
+    private List<Director> directors;
 
     public boolean hasName() {
         return name != null && !name.isBlank();
@@ -43,4 +45,7 @@ public class UpdateFilmDto {
         return genres != null;
     }
 
+    public boolean hasDirectors() {
+        return directors != null;
+    }
 }

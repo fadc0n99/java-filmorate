@@ -1,39 +1,38 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
-@Component
-@RequiredArgsConstructor
 @Slf4j
 public class InMemoryFilmStorage implements FilmStorage {
 
-    private final Map<Long, Film> films;
+    private final Map<Long, Film> films = new HashMap<>();
 
     @Override
     public List<Film> findAll() {
-        return films.values().stream().toList();
+        return new ArrayList<>(films.values());
     }
 
     @Override
     public Film save(Film newFilm) {
         long newId = generateId();
         newFilm.setId(newId);
-
         films.put(newId, newFilm);
-
+        log.debug("Фильм сохранен в памяти: {}", newFilm);
         return newFilm;
     }
 
     @Override
     public Film update(Film newFilm) {
+        if (!films.containsKey(newFilm.getId())) {
+            throw new NotFoundException("Фильм с ID " + newFilm.getId() + " не найден");
+        }
         films.put(newFilm.getId(), newFilm);
-
+        log.debug("Фильм обновлен в памяти: {}", newFilm);
         return newFilm;
     }
 
@@ -72,14 +71,6 @@ public class InMemoryFilmStorage implements FilmStorage {
     }
 
     @Override
-    public List<Film> getPopularFilms(long count) {
-        return films.values().stream()
-                .sorted(Comparator.comparingInt((Film film) -> getLikes(film.getId()).size()).reversed())
-                .limit(count)
-                .toList();
-    }
-
-    @Override
     public List<Film> getCommonFilms(Long userId, Long friendId) {
         return new ArrayList<>();
     }
@@ -102,41 +93,51 @@ public class InMemoryFilmStorage implements FilmStorage {
     @Override
     public void addLike(long filmId, long userId) {
         Film film = films.get(filmId);
-
         if (film == null) {
             throw new NotFoundException("Film with ID " + filmId + " not found");
         }
-
-        Set<Long> likes = film.getLikedUsersFilms();
-        if (likes == null) {
-            likes = new HashSet<>();
-            film.setLikedUsersFilms(likes);
+        if (film.getLikedUsersFilms() == null) {
+            film.setLikedUsersFilms(new HashSet<>());
         }
-        likes.add(userId);
+        film.getLikedUsersFilms().add(userId);
     }
 
     @Override
     public boolean isLikeExists(long filmId, long userId) {
         Film film = films.get(filmId);
-        if (film == null) {
-            return false;
-        }
+        return film != null && film.getLikedUsersFilms() != null && film.getLikedUsersFilms().contains(userId);
+    }
 
-        Set<Long> likes = film.getLikedUsersFilms();
-        return likes != null && likes.contains(userId);
+    @Override
+    public List<Film> getPopularFilms(long count) {
+        return films.values().stream()
+                .sorted((f1, f2) -> Integer.compare(getLikesCount(f2), getLikesCount(f1)))
+                .limit(count)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Film> findAllByDirector(long directorId, String sortBy) {
+        List<Film> directorFilms = films.values().stream()
+                .filter(film -> film.getDirectors() != null &&
+                        film.getDirectors().stream().anyMatch(d -> d.getId() == directorId))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        if ("year".equalsIgnoreCase(sortBy)) {
+            directorFilms.sort(Comparator.comparing(Film::getReleaseDate,
+                    Comparator.nullsLast(Comparator.naturalOrder())));
+        } else if ("likes".equalsIgnoreCase(sortBy)) {
+            directorFilms.sort((f1, f2) -> Integer.compare(getLikesCount(f2), getLikesCount(f1)));
+        }
+        return directorFilms;
+    }
+
+    private int getLikesCount(Film film) {
+        return film.getLikedUsersFilms() != null ? film.getLikedUsersFilms().size() : 0;
     }
 
     private Long generateId() {
-        long currentId = films.keySet()
-                .stream()
-                .mapToLong(id -> id)
-                .max()
-                .orElse(0);
-
-        log.debug("Generated new ID for Film. New ID: {}", currentId + 1);
-
+        long currentId = films.keySet().stream().mapToLong(id -> id).max().orElse(0);
         return ++currentId;
     }
-
-
 }

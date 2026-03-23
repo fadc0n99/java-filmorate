@@ -9,6 +9,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import ru.yandex.practicum.filmorate.dto.film.FilmDto;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.model.Mpa;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.service.RecommendationService;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
@@ -84,8 +86,8 @@ class RecommendationTest {
                 .description("Description 1")
                 .releaseDate(LocalDate.of(2020, 1, 1))
                 .duration(120)
-                .mpaId(1L)
-                .genresIds(List.of(1L))
+                .mpa(Mpa.builder().id(1L).build())
+                .genres(List.of(Genre.builder().id(1L).build()))
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -94,8 +96,8 @@ class RecommendationTest {
                 .description("Description 2")
                 .releaseDate(LocalDate.of(2020, 2, 1))
                 .duration(130)
-                .mpaId(2L)
-                .genresIds(List.of(2L))
+                .mpa(Mpa.builder().id(2L).build())
+                .genres(List.of(Genre.builder().id(2L).build()))
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -104,8 +106,8 @@ class RecommendationTest {
                 .description("Description 3")
                 .releaseDate(LocalDate.of(2020, 3, 1))
                 .duration(140)
-                .mpaId(3L)
-                .genresIds(List.of(3L))
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(Genre.builder().id(3L).build()))
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -114,8 +116,8 @@ class RecommendationTest {
                 .description("Description 4")
                 .releaseDate(LocalDate.of(2020, 4, 1))
                 .duration(150)
-                .mpaId(4L)
-                .genresIds(List.of(4L))
+                .mpa(Mpa.builder().id(4L).build())
+                .genres(List.of(Genre.builder().id(4L).build()))
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -124,8 +126,8 @@ class RecommendationTest {
                 .description("Description 5")
                 .releaseDate(LocalDate.of(2020, 5, 1))
                 .duration(160)
-                .mpaId(5L)
-                .genresIds(List.of(5L))
+                .mpa(Mpa.builder().id(5L).build())
+                .genres(List.of(Genre.builder().id(5L).build()))
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -134,8 +136,11 @@ class RecommendationTest {
                 .description("Description 6")
                 .releaseDate(LocalDate.of(2020, 6, 1))
                 .duration(170)
-                .mpaId(1L)
-                .genresIds(List.of(1L, 2L))
+                .mpa(Mpa.builder().id(1L).build())
+                .genres(List.of(
+                        Genre.builder().id(1L).build(),
+                        Genre.builder().id(2L).build()
+                ))
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -144,8 +149,11 @@ class RecommendationTest {
                 .description("Description 7")
                 .releaseDate(LocalDate.of(2020, 7, 1))
                 .duration(180)
-                .mpaId(2L)
-                .genresIds(List.of(3L, 4L))
+                .mpa(Mpa.builder().id(2L).build())
+                .genres(List.of(
+                        Genre.builder().id(3L).build(),
+                        Genre.builder().id(4L).build()
+                ))
                 .likedUsersFilms(Set.of())
                 .build();
 
@@ -154,8 +162,11 @@ class RecommendationTest {
                 .description("Description 8")
                 .releaseDate(LocalDate.of(2020, 8, 1))
                 .duration(190)
-                .mpaId(3L)
-                .genresIds(List.of(5L, 6L))
+                .mpa(Mpa.builder().id(3L).build())
+                .genres(List.of(
+                        Genre.builder().id(5L).build(),
+                        Genre.builder().id(6L).build()
+                ))
                 .likedUsersFilms(Set.of())
                 .build();
 
