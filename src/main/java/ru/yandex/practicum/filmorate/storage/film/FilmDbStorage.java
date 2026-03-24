@@ -1,6 +1,5 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -68,19 +67,19 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     private static final String EXISTS_FILM_BY_ID = "SELECT EXISTS(SELECT 1 FROM films WHERE id = ?)";
 
     private static final String FIND_POPULAR_FILMS = """
-        WITH film_likes_stats AS (
+            WITH film_likes_stats AS (
             SELECT film_id, COUNT(*) AS likes_count
-              FROM film_likes
-             GROUP BY film_id
-            )
-        SELECT f.*
-          FROM films f
-          LEFT JOIN film_likes_stats fls ON f.id = fls.film_id
-         WHERE (? IS NULL OR EXTRACT(YEAR FROM f.release_date) = ?)
-           AND (? IS NULL OR f.id IN (SELECT film_id FROM film_genres WHERE genre_id = ?))
-         ORDER BY COALESCE(fls.likes_count, 0) DESC
-         LIMIT ?
-        """;
+            FROM film_likes
+            GROUP BY film_id)
+            SELECT f.*, m.*
+            FROM films f
+            LEFT JOIN mpa_ratings m ON f.mpa_rating_id = m.mpa_id
+            LEFT JOIN film_likes_stats fls ON f.id = fls.film_id
+            WHERE (? IS NULL OR EXTRACT(YEAR FROM f.release_date) = ?)
+            AND (? IS NULL OR f.id IN (SELECT film_id FROM film_genres WHERE genre_id = ?))
+            ORDER BY COALESCE(fls.likes_count, 0) DESC
+            LIMIT ?
+            """;
 
     private static final String GET_COMMON_FILMS = """
             SELECT f.*, m.*
@@ -129,7 +128,6 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     private final RowMapper<Genre> genreRowMapper;
     private final NamedParameterJdbcTemplate namedJdbc;
 
-    @Autowired
     public FilmDbStorage(JdbcTemplate jdbc,
                          RowMapper<Film> rowMapper,
                          RowMapper<Director> directorRowMapper,
@@ -155,23 +153,6 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         Optional<Film> film = findOne(FIND_FILM_BY_ID, id);
         film.ifPresent(this::enrichFilmData);
         return film;
-    }
-
-    private void enrichFilmGenres(Film film) {
-        List<Long> filmGenresIds = getFilmGenreIds(film);
-
-        film.setGenresIds(filmGenresIds);
-    }
-
-    private void enrichFilmsGenres(List<Film> films) {
-        if (films == null || films.isEmpty()) {
-            return;
-        }
-        List<Long> filmIds = films.stream().map(Film::getId).toList();
-
-        Map<Long, List<Long>> filmsGenres = getGenreIdsForFilms(filmIds);
-
-        films.forEach(film -> film.setGenresIds(filmsGenres.get(film.getId())));
     }
 
     @Override
@@ -204,8 +185,8 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     }
 
     @Override
-    public List<Film> getPopularFilms(long count) {
-        List<Film> films = findMany(FIND_POPULAR_FILMS, (int) count);
+    public List<Film> getPopularFilms(Integer count, Integer genreId, Integer year) {
+        List<Film> films = findMany(FIND_POPULAR_FILMS,  year, year, genreId, genreId, count);
         enrichFilmsData(films);
         return films;
     }
@@ -251,14 +232,11 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             batchUpdate("INSERT INTO film_directors (film_id, director_id) VALUES (?, ?)", batchArgs);
         }
     }
+
     private void enrichFilmData(Film film) {
         film.setGenres(jdbc.query(FIND_GENRES_BY_FILM_ID, genreRowMapper, film.getId()));
         film.setDirectors(jdbc.query(FIND_DIRECTORS_BY_FILM_ID, directorRowMapper, film.getId()));
     }
-    @Override
-    public List<Film> getPopularFilms(Integer count, Integer genreId, Integer year) {
-        List<Film> popularFilms = findMany(FIND_POPULAR_FILMS,  year, year, genreId, genreId, count);
-
 
     private void enrichFilmsData(List<Film> films) {
         if (films.isEmpty()) return;

@@ -106,9 +106,9 @@ public class FilmService {
                 .toList();
     }
 
-    public List<FilmDto> getPopularFilms(long count) {
+    public List<FilmDto> getPopularFilms(Integer count, Integer genreId, Integer year) {
         log.debug("Getting top {} popular films", count);
-        List<Film> popularFilms = filmStorage.getPopularFilms(count);
+        List<Film> popularFilms = filmStorage.getPopularFilms(count, genreId, year);
         return popularFilms.stream()
                 .map(filmMapper::toDto)
                 .toList();
@@ -167,26 +167,6 @@ public class FilmService {
         if (film.getReleaseDate().isBefore(MIN_RELEASE_DATE)) {
             throw new ValidationException(ErrorMessages.releaseDateInvalid(MIN_RELEASE_DATE));
         }
-    }
-
-    public boolean isLikeExists(long filmId, long userId) {
-        return filmStorage.isLikeExists(filmId, userId);
-    }
-
-    public List<FilmDto> getPopularFilms(Integer count, Integer genreId, Integer year) {
-        log.debug("Getting top {} popular films", count);
-
-        List<Film> popularFilms = filmStorage.getPopularFilms(count, genreId, year);
-        return convertToDtos(popularFilms);
-    }
-
-    public List<FilmDto> getCommonFilmsSortedByPopularity(Long userId, Long friendId) {
-        log.debug("list of movies sorted by popularity");
-        userValidator.validateExists(userId);
-        userValidator.validateExists(friendId);
-
-        List<Film> popularFilms = filmStorage.getCommonFilms(userId, friendId);
-        return convertToDtos(popularFilms);
     }
 
     private void validateMpaRating(MpaRequestDto mpaRequestDto) {

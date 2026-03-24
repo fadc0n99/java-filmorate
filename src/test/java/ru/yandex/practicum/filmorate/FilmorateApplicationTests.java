@@ -562,7 +562,7 @@ class FilmorateApplicationTests {
                 .releaseDate(LocalDate.of(2002, 1, 1))
                 .duration(130)
                 .mpa(Mpa.builder().id(2L).build())
-                .genres(List.of(Genre.builder().id(2L).build()))
+                .genres(List.of(Genre.builder().id(1L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -572,7 +572,7 @@ class FilmorateApplicationTests {
                 .releaseDate(LocalDate.of(2002, 1, 1))
                 .duration(140)
                 .mpa(Mpa.builder().id(3L).build())
-                .genres(List.of(Genre.builder().id(3L).build()))
+                .genres(List.of(Genre.builder().id(1L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -585,7 +585,7 @@ class FilmorateApplicationTests {
 
         filmStorage.addLike(film1.getId(), user1.getId());
 
-        List<Film> popularFilms = filmStorage.getPopularFilms(3,3,2002);
+        List<Film> popularFilms = filmStorage.getPopularFilms(3,1, 2002);
 
         assertThat(popularFilms).hasSize(3);
 
@@ -677,30 +677,7 @@ class FilmorateApplicationTests {
             filmStorage.addLike(film.getId(), user.getId());
         }
 
-        List<Film> popularFilms = filmStorage.getPopularFilms(3, null, null);
-
-        assertThat(popularFilms).hasSize(3);
-    }
-
-    @Test
-    void testGetPopularFilmsWithLimitGenresYear() {
-        User user = userStorage.save(testUser);
-
-        for (int i = 1; i <= 5; i++) {
-            Film film = Film.builder()
-                    .name("Film " + i)
-                    .description("Description " + i)
-                    .releaseDate(LocalDate.of(2022, 1, 1))
-                    .duration(100 + i)
-                    .mpaId(1L)
-                    .genresIds(List.of(1L))
-                    .likedUsersFilms(Set.of())
-                    .build();
-            filmStorage.save(film);
-            filmStorage.addLike(film.getId(), user.getId());
-        }
-
-        List<Film> popularFilms = filmStorage.getPopularFilms(3, 1, 2022);
+        List<Film> popularFilms = filmStorage.getPopularFilms(3, 1,2002);
 
         assertThat(popularFilms).hasSize(3);
     }

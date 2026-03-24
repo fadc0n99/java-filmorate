@@ -7,7 +7,6 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.dto.film.CreateFilmDto;
@@ -72,17 +71,23 @@ public class FilmController {
     }
 
     @GetMapping("/popular")
-    public ResponseEntity<List<FilmDto>> handlePopularFilms(
+    public List<FilmDto> handlePopularFilms(
             @RequestParam(defaultValue = "10") @Positive Integer count,
             @RequestParam(required = false) Integer genreId,
             @RequestParam(required = false) Integer year) {
-        log.debug("Request received: GET /films/popular - retrieving popular films");
+        log.info("Request received: GET /films/popular - retrieving popular films - Retrieved  popular films (limit={}, genreId={}, year={})",
+                count, genreId, year);
+        return filmService.getPopularFilms(count, genreId, year);
+    }
 
-        List<FilmDto> popularFilms = filmService.getPopularFilms(count, genreId, year);
+    @GetMapping("/director/{directorId}")
+    public List<FilmDto> handleGetFilmsByDirector(
+            @PathVariable @NotNull Integer directorId,
+            @RequestParam @Pattern(regexp = "year|likes",
+                    message = "Сортировка возможна только по 'year' или 'likes'") String sortBy) {
 
-        log.info("Retrieved {} popular films (limit={}, genreId={}, year={})",
-                popularFilms.size(), count, genreId, year);
-        return new ResponseEntity<>(popularFilms, HttpStatus.OK);
+        log.debug("Request received: GET /films/director/{} - sorting by {}", directorId, sortBy);
+        return filmService.getFilmsByDirector(directorId, sortBy);
     }
 
     @GetMapping("/common")
