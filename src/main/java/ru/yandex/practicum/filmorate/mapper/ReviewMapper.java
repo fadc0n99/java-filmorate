@@ -10,7 +10,7 @@ import ru.yandex.practicum.filmorate.model.Review;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ReviewMapper {
 
-    public static Review toReview(CreateReviewDto dto) {
+    public static Review toEntity(CreateReviewDto dto) {
         return Review.builder()
                 .content(dto.getContent())
                 .isPositive(dto.getIsPositive())

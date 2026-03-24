@@ -1,6 +1,5 @@
 package ru.yandex.practicum.filmorate.storage;
 
-import com.sun.jdi.InternalException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RequiredArgsConstructor
-public class BaseDbStorage<T> {
+public abstract class BaseDbStorage<T> {
     protected final JdbcTemplate jdbc;
     protected final RowMapper<T> rowMapper;
 
@@ -42,20 +41,26 @@ public class BaseDbStorage<T> {
             return ps;
         }, keyHolder);
 
-        Long id = keyHolder.getKeyAs(Long.class);
-
-        if (id != null) {
-            return id;
-        } else {
-            throw new InternalException("Couldn't save data");
-        }
+        return Optional.ofNullable(keyHolder.getKey())
+                .map(Number::longValue)
+                .orElseThrow(() ->
+                        new IllegalStateException("Failed to retrieve generated key during insert operation"));
     }
 
     protected void update(String query, Object... params) {
         int updatedRows = jdbc.update(query, params);
         if (updatedRows == 0) {
-            throw new NotFoundException("Entity not found for update/delete");
+            throw new NotFoundException("No record found to update");
         }
+    }
+
+    protected void updateWithoutCheck(String query, Object... params) {
+        jdbc.update(query, params);
+    }
+
+    protected boolean delete(String query, Object... params) {
+        int rowsAffected = jdbc.update(query, params);
+        return rowsAffected > 0;
     }
 
     protected boolean isExistOne(String query, Object... params) {
@@ -63,4 +68,9 @@ public class BaseDbStorage<T> {
         return Boolean.TRUE.equals(exists);
     }
 
+    protected void batchUpdate(String query, List<Object[]> batchArgs) {
+        if (!batchArgs.isEmpty()) {
+            jdbc.batchUpdate(query, batchArgs);
+        }
+    }
 }

@@ -8,6 +8,7 @@ import lombok.Data;
 import org.hibernate.validator.constraints.Length;
 import ru.yandex.practicum.filmorate.dto.genre.GenreRequestDto;
 import ru.yandex.practicum.filmorate.dto.mpa.MpaRequestDto;
+import ru.yandex.practicum.filmorate.model.Director;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -32,4 +33,6 @@ public class CreateFilmDto {
 
     private MpaRequestDto mpa;
     private List<GenreRequestDto> genres;
+
+    private List<Director> directors;
 }
