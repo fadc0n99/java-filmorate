@@ -72,9 +72,12 @@ public class FilmController {
 
     @GetMapping("/popular")
     public List<FilmDto> handlePopularFilms(
-            @RequestParam(defaultValue = "10") @Positive Integer count) {
-        log.debug("Request received: GET /films/popular - retrieving popular films (count={})", count);
-        return filmService.getPopularFilms(count);
+            @RequestParam(defaultValue = "10") @Positive Integer count,
+            @RequestParam(required = false) Integer genreId,
+            @RequestParam(required = false) Integer year) {
+        log.info("Request received: GET /films/popular - retrieving popular films - Retrieved  popular films (limit={}, genreId={}, year={})",
+                count, genreId, year);
+        return filmService.getPopularFilms(count, genreId, year);
     }
 
     @GetMapping("/director/{directorId}")

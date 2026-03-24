@@ -106,9 +106,9 @@ public class FilmService {
                 .toList();
     }
 
-    public List<FilmDto> getPopularFilms(long count) {
+    public List<FilmDto> getPopularFilms(Integer count, Integer genreId, Integer year) {
         log.debug("Getting top {} popular films", count);
-        List<Film> popularFilms = filmStorage.getPopularFilms(count);
+        List<Film> popularFilms = filmStorage.getPopularFilms(count, genreId, year);
         return popularFilms.stream()
                 .map(filmMapper::toDto)
                 .toList();

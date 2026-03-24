@@ -549,7 +549,7 @@ class FilmorateApplicationTests {
         Film film1 = filmStorage.save(Film.builder()
                 .name("Film 1")
                 .description("Description 1")
-                .releaseDate(LocalDate.of(2000, 1, 1))
+                .releaseDate(LocalDate.of(2002, 1, 1))
                 .duration(120)
                 .mpa(Mpa.builder().id(1L).build())
                 .genres(List.of(Genre.builder().id(1L).build()))
@@ -559,10 +559,10 @@ class FilmorateApplicationTests {
         Film film2 = filmStorage.save(Film.builder()
                 .name("Film 2")
                 .description("Description 2")
-                .releaseDate(LocalDate.of(2001, 1, 1))
+                .releaseDate(LocalDate.of(2002, 1, 1))
                 .duration(130)
                 .mpa(Mpa.builder().id(2L).build())
-                .genres(List.of(Genre.builder().id(2L).build()))
+                .genres(List.of(Genre.builder().id(1L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -572,7 +572,7 @@ class FilmorateApplicationTests {
                 .releaseDate(LocalDate.of(2002, 1, 1))
                 .duration(140)
                 .mpa(Mpa.builder().id(3L).build())
-                .genres(List.of(Genre.builder().id(3L).build()))
+                .genres(List.of(Genre.builder().id(1L).build()))
                 .likedUsersFilms(Set.of())
                 .build());
 
@@ -585,7 +585,7 @@ class FilmorateApplicationTests {
 
         filmStorage.addLike(film1.getId(), user1.getId());
 
-        List<Film> popularFilms = filmStorage.getPopularFilms(3);
+        List<Film> popularFilms = filmStorage.getPopularFilms(3,1, 2002);
 
         assertThat(popularFilms).hasSize(3);
 
@@ -667,7 +667,7 @@ class FilmorateApplicationTests {
             Film film = Film.builder()
                     .name("Film " + i)
                     .description("Description " + i)
-                    .releaseDate(LocalDate.of(2000 + i, 1, 1))
+                    .releaseDate(LocalDate.of(2002, 1, 1))
                     .duration(100 + i)
                     .mpa(Mpa.builder().id(1L).build())
                     .genres(List.of(Genre.builder().id(1L).build()))
@@ -677,7 +677,7 @@ class FilmorateApplicationTests {
             filmStorage.addLike(film.getId(), user.getId());
         }
 
-        List<Film> popularFilms = filmStorage.getPopularFilms(3);
+        List<Film> popularFilms = filmStorage.getPopularFilms(3, 1,2002);
 
         assertThat(popularFilms).hasSize(3);
     }

@@ -67,15 +67,17 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     private static final String EXISTS_FILM_BY_ID = "SELECT EXISTS(SELECT 1 FROM films WHERE id = ?)";
 
     private static final String FIND_POPULAR_FILMS = """
+            WITH film_likes_stats AS (
+            SELECT film_id, COUNT(*) AS likes_count
+            FROM film_likes
+            GROUP BY film_id)
             SELECT f.*, m.*
             FROM films f
             LEFT JOIN mpa_ratings m ON f.mpa_rating_id = m.mpa_id
-            LEFT JOIN (
-                SELECT film_id, COUNT(*) AS likes_count
-                FROM film_likes
-                GROUP BY film_id
-            ) AS film_stats ON f.id = film_stats.film_id
-            ORDER BY COALESCE(film_stats.likes_count, 0) DESC
+            LEFT JOIN film_likes_stats fls ON f.id = fls.film_id
+            WHERE (? IS NULL OR EXTRACT(YEAR FROM f.release_date) = ?)
+            AND (? IS NULL OR f.id IN (SELECT film_id FROM film_genres WHERE genre_id = ?))
+            ORDER BY COALESCE(fls.likes_count, 0) DESC
             LIMIT ?
             """;
 
@@ -183,8 +185,8 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     }
 
     @Override
-    public List<Film> getPopularFilms(long count) {
-        List<Film> films = findMany(FIND_POPULAR_FILMS, (int) count);
+    public List<Film> getPopularFilms(Integer count, Integer genreId, Integer year) {
+        List<Film> films = findMany(FIND_POPULAR_FILMS,  year, year, genreId, genreId, count);
         enrichFilmsData(films);
         return films;
     }
