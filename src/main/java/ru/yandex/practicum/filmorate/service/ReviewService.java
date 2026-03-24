@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.dto.review.CreateReviewDto;
 import ru.yandex.practicum.filmorate.dto.review.ResponseReviewDto;
 import ru.yandex.practicum.filmorate.dto.review.UpdateReviewDto;
@@ -10,6 +11,8 @@ import ru.yandex.practicum.filmorate.exception.ErrorMessages;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.mapper.ReviewMapper;
+import ru.yandex.practicum.filmorate.model.EventType;
+import ru.yandex.practicum.filmorate.model.Operation;
 import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.model.VoteType;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
@@ -26,17 +29,21 @@ public class ReviewService {
     private final ReviewStorage reviewStorage;
     private final UserStorage userStorage;
     private final FilmStorage filmStorage;
+    private final FeedService feedService; // ✅ Добавлено
 
     public ReviewService(ReviewStorage reviewStorage,
                          @Qualifier("userDbStorage") UserStorage userStorage,
-                         @Qualifier("filmDbStorage") FilmStorage filmStorage) {
+                         @Qualifier("filmDbStorage") FilmStorage filmStorage,
+                         FeedService feedService) { // ✅ Добавлено
         this.reviewStorage = reviewStorage;
         this.userStorage = userStorage;
         this.filmStorage = filmStorage;
+        this.feedService = feedService; // ✅ Добавлено
     }
 
     private static final int DEFAULT_REVIEW_LIMIT = 10;
 
+    @Transactional
     public ResponseReviewDto saveReview(CreateReviewDto reviewDto) {
         validateNoDuplicateReview(reviewDto.getUserId(), reviewDto.getFilmId());
         validateUserExists(reviewDto.getUserId());
@@ -44,9 +51,19 @@ public class ReviewService {
 
         Review review = ReviewMapper.toEntity(reviewDto);
         review = reviewStorage.save(review);
+
+        // ✅ Логируем событие создания отзыва
+        feedService.logEvent(
+                review.getUserId(),
+                EventType.REVIEW,
+                Operation.ADD,
+                review.getReviewId()
+        );
+
         return ReviewMapper.toDto(review);
     }
 
+    @Transactional
     public ResponseReviewDto updateReview(UpdateReviewDto reviewDto) {
         Review review = reviewStorage.findById(reviewDto.getReviewId())
                 .map(result -> ReviewMapper.updateFields(result, reviewDto))
@@ -55,11 +72,33 @@ public class ReviewService {
                 );
 
         review = reviewStorage.update(review);
+
+        // ✅ Логируем событие обновления отзыва
+        feedService.logEvent(
+                review.getUserId(),
+                EventType.REVIEW,
+                Operation.UPDATE,
+                review.getReviewId()
+        );
+
         return ReviewMapper.toDto(review);
     }
 
+    @Transactional
     public void deleteReview(Long id) {
+        // Находим отзыв перед удалением, чтобы получить userId для события
+        Review review = reviewStorage.findById(id)
+                .orElseThrow(() -> new NotFoundException(ErrorMessages.reviewNotFound(id)));
+
         reviewStorage.delete(id);
+
+        // ✅ Логируем событие удаления отзыва
+        feedService.logEvent(
+                review.getUserId(),
+                EventType.REVIEW,
+                Operation.REMOVE,
+                id
+        );
     }
 
     public ResponseReviewDto findReviewById(Long id) {
