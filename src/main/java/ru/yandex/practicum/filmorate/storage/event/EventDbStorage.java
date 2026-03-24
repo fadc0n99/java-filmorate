@@ -1,15 +1,17 @@
 package ru.yandex.practicum.filmorate.storage.event;
 
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Event;
 import ru.yandex.practicum.filmorate.model.EventType;
 import ru.yandex.practicum.filmorate.model.Operation;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -31,20 +33,22 @@ public class EventDbStorage implements EventStorage {
                 VALUES (?, ?, ?, ?, ?)
                 """;
 
-        jdbcTemplate.update(sql,
-                event.getTimestamp(),
-                event.getUserId(),
-                event.getEventType().getValue(),
-                event.getOperation().getValue(),
-                event.getEntityId()
-        );
+        KeyHolder keyHolder = new GeneratedKeyHolder();
 
-        // Получаем сгенерированный ID
-        String sqlId = "SELECT event_id FROM events WHERE user_id = ? AND timestamp = ? ORDER BY event_id DESC LIMIT 1";
-        Long eventId = jdbcTemplate.queryForObject(sqlId, Long.class, event.getUserId(), event.getTimestamp());
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, new String[]{"event_id"});
+            ps.setLong(1, event.getTimestamp());
+            ps.setLong(2, event.getUserId());
+            ps.setString(3, event.getEventType().getValue());
+            ps.setString(4, event.getOperation().getValue());
+            ps.setLong(5, event.getEntityId());
+            return ps;
+        }, keyHolder);
 
-        if (eventId != null) {
-            event.setEventId(eventId);
+        Number key = keyHolder.getKey();
+        if (key != null) {
+            event.setEventId(key.longValue());
+            log.debug("Event saved with id={}", event.getEventId());
         }
 
         return event;
@@ -58,20 +62,19 @@ public class EventDbStorage implements EventStorage {
                 SELECT event_id, timestamp, user_id, event_type, operation, entity_id
                 FROM events
                 WHERE user_id = ?
-                ORDER BY timestamp DESC
+                ORDER BY timestamp ASC
                 LIMIT ?
                 """;
 
         return jdbcTemplate.query(sql, new EventRowMapper(), userId, count);
     }
 
-    // ✅ ИСПРАВЛЕННЫЙ маппер: читаем timestamp как LONG, а не как TIMESTAMP
     private static class EventRowMapper implements RowMapper<Event> {
         @Override
         public Event mapRow(ResultSet rs, int rowNum) throws SQLException {
             return Event.builder()
                     .eventId(rs.getLong("event_id"))
-                    .timestamp(rs.getLong("timestamp"))  // <-- Читаем как LONG (BIGINT)
+                    .timestamp(rs.getLong("timestamp"))
                     .userId(rs.getLong("user_id"))
                     .eventType(EventType.valueOf(rs.getString("event_type")))
                     .operation(Operation.valueOf(rs.getString("operation")))
