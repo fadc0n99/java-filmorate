@@ -312,18 +312,15 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     public List<Film> search(String query, String by) {
         String searchPattern = "%" + query.toLowerCase() + "%";
-
         StringBuilder sql = new StringBuilder(
-                "SELECT f.*, m.mpa_name, COUNT(fl.user_id) AS rate " +
+                "SELECT f.*, m.*, COUNT(fl.user_id) AS rate " +
                         "FROM films f " +
                         "LEFT JOIN mpa_ratings m ON f.mpa_rating_id = m.mpa_id " +
                         "LEFT JOIN film_directors fd ON f.id = fd.film_id " +
                         "LEFT JOIN directors d ON fd.director_id = d.director_id " +
                         "LEFT JOIN film_likes fl ON f.id = fl.film_id "
         );
-
         List<Object> params = new ArrayList<>();
-
         if (by.contains("director") && by.contains("title")) {
             sql.append("WHERE LOWER(f.name) LIKE ? OR LOWER(d.director_name) LIKE ? ");
             params.add(searchPattern);
@@ -335,38 +332,12 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             sql.append("WHERE LOWER(f.name) LIKE ? ");
             params.add(searchPattern);
         }
-
-        sql.append("GROUP BY f.id, m.mpa_name ORDER BY rate DESC");
-
+        sql.append("GROUP BY f.id, m.mpa_id, m.mpa_name, m.description ORDER BY rate DESC");
         List<Film> films = findMany(sql.toString(), params.toArray());
-
-        return loadRelations(films);
-    }
-
-    private List<Film> loadRelations(List<Film> films) {
-        if (films.isEmpty()) return films;
-
-        String inSql = films.stream()
-                .map(f -> String.valueOf(f.getId()))
-                .collect(Collectors.joining(","));
-
-        String genreSql = "SELECT fg.film_id, g.id, g.name FROM film_genres fg " +
-                "JOIN genres g ON fg.genre_id = g.id WHERE fg.film_id IN (" + inSql + ")";
-        jdbc.query(genreSql, (rs) -> {
-            long filmId = rs.getLong("film_id");
-            Genre genre = Genre.builder().id(rs.getLong("id")).name(rs.getString("name")).build();
-            films.stream().filter(f -> f.getId() == filmId).findFirst().ifPresent(f -> f.getGenres().add(genre));
-        });
-
-        String dirSql = "SELECT fd.film_id, d.director_id, d.director_name FROM film_directors fd " +
-                "JOIN directors d ON fd.director_id = d.director_id WHERE fd.film_id IN (" + inSql + ")";
-        jdbc.query(dirSql, (rs) -> {
-            long filmId = rs.getLong("film_id");
-            Director director = Director.builder()
-                    .id(rs.getInt("director_id"))
-                    .name(rs.getString("director_name")).build();
-            films.stream().filter(f -> f.getId() == filmId).findFirst().ifPresent(f -> f.getDirectors().add(director));
-        });
+        if (!films.isEmpty()) {
+            enrichFilmsData(films);
+        }
         return films;
     }
+
 }
