@@ -13,7 +13,6 @@ import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Repository("filmDbStorage")
 public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
@@ -339,5 +338,4 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         }
         return films;
     }
-
 }
