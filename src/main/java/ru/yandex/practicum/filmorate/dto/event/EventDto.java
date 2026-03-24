@@ -3,8 +3,7 @@ package ru.yandex.practicum.filmorate.dto.event;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
-import ru.yandex.practicum.filmorate.model.EventType;
-import ru.yandex.practicum.filmorate.model.Operation;
+
 
 @Data
 @Builder
