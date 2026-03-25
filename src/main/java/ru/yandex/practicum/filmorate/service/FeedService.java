@@ -18,12 +18,10 @@ import java.util.List;
 public class FeedService {
 
     private final EventStorage eventStorage;
-    private final UserService userService;
 
     public List<EventDto> getUserFeed(Long userId, Integer count) {
         log.debug("Getting feed for user {}, limit {}", userId, count);
 
-        // Простая валидация без вызова userService.isUserExists()
         if (userId == null || userId <= 0) {
             throw new NotFoundException("Invalid user ID: must be greater than 0");
         }
@@ -46,9 +44,7 @@ public class FeedService {
                 .build();
     }
 
-    // Публичный метод для логирования событий из других сервисов
     public void logEvent(Long userId, EventType type, Operation op, Long entityId) {
-        // Простая валидация
         if (userId == null || userId <= 0) {
             throw new NotFoundException("Invalid user ID: must be greater than 0");
         }
@@ -64,6 +60,7 @@ public class FeedService {
         log.debug("Event logged: userId={}, type={}, op={}, entityId={}", userId, type, op, entityId);
     }
 }
+
 
 
 

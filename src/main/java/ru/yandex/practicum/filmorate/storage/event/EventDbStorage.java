@@ -1,27 +1,25 @@
 package ru.yandex.practicum.filmorate.storage.event;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Event;
 import ru.yandex.practicum.filmorate.model.EventType;
 import ru.yandex.practicum.filmorate.model.Operation;
+import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
 @Repository
-@RequiredArgsConstructor
 @Slf4j
-public class EventDbStorage implements EventStorage {
+public class EventDbStorage extends BaseDbStorage<Event> implements EventStorage {
 
-    private final JdbcTemplate jdbcTemplate;
+    public EventDbStorage(JdbcTemplate jdbcTemplate) {
+        super(jdbcTemplate, new EventRowMapper());
+    }
 
     @Override
     public Event save(Event event) {
@@ -33,23 +31,16 @@ public class EventDbStorage implements EventStorage {
                 VALUES (?, ?, ?, ?, ?)
                 """;
 
-        KeyHolder keyHolder = new GeneratedKeyHolder();
+        long eventId = insert(sql,
+                event.getTimestamp(),
+                event.getUserId(),
+                event.getEventType().getValue(),
+                event.getOperation().getValue(),
+                event.getEntityId()
+        );
 
-        jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(sql, new String[]{"event_id"});
-            ps.setLong(1, event.getTimestamp());
-            ps.setLong(2, event.getUserId());
-            ps.setString(3, event.getEventType().getValue());
-            ps.setString(4, event.getOperation().getValue());
-            ps.setLong(5, event.getEntityId());
-            return ps;
-        }, keyHolder);
-
-        Number key = keyHolder.getKey();
-        if (key != null) {
-            event.setEventId(key.longValue());
-            log.debug("Event saved with id={}", event.getEventId());
-        }
+        event.setEventId(eventId);
+        log.debug("Event saved with id={}", event.getEventId());
 
         return event;
     }
@@ -66,7 +57,7 @@ public class EventDbStorage implements EventStorage {
                 LIMIT ?
                 """;
 
-        return jdbcTemplate.query(sql, new EventRowMapper(), userId, count);
+        return findMany(sql, userId, count);
     }
 
     private static class EventRowMapper implements RowMapper<Event> {
@@ -83,3 +74,4 @@ public class EventDbStorage implements EventStorage {
         }
     }
 }
+
