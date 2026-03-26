@@ -65,6 +65,20 @@ CREATE TABLE IF NOT EXISTS friendships (
     CONSTRAINT different_users CHECK (user_id != friend_id)
 );
 
+-- Таблица событий для ленты пользователя
+CREATE TABLE IF NOT EXISTS events (
+    event_id      BIGINT AUTO_INCREMENT PRIMARY KEY,
+    timestamp     BIGINT NOT NULL,
+    user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_type    VARCHAR(10) NOT NULL CHECK (event_type IN ('LIKE', 'REVIEW', 'FRIEND')),
+    operation     VARCHAR(10) NOT NULL CHECK (operation IN ('ADD', 'REMOVE', 'UPDATE')),
+    entity_id     BIGINT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
+CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp DESC);
+
+
 -- Таблица отзывы
 CREATE TABLE IF NOT EXISTS reviews (
     review_id BIGINT AUTO_INCREMENT PRIMARY KEY,

@@ -14,7 +14,9 @@ import ru.yandex.practicum.filmorate.exception.ErrorMessages;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.mapper.FilmMapper;
+import ru.yandex.practicum.filmorate.model.EventType;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Operation;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
@@ -32,6 +34,7 @@ public class FilmService {
     private final MpaStorage mpaStorage;
     private final UserStorage userStorage;
     private final FilmMapper filmMapper;
+    private final FeedService feedService; // <-- Добавлено
 
     private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
 
@@ -40,12 +43,14 @@ public class FilmService {
                        GenreStorage genreStorage,
                        MpaStorage mpaStorage,
                        @Qualifier("userDbStorage") UserStorage userStorage,
-                       FilmMapper filmMapper) {
+                       FilmMapper filmMapper,
+                       FeedService feedService) { // <-- Добавлено
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
         this.genreStorage = genreStorage;
         this.mpaStorage = mpaStorage;
         this.filmMapper = filmMapper;
+        this.feedService = feedService; // <-- Добавлено
     }
 
     public List<FilmDto> findAllFilms() {
@@ -106,7 +111,6 @@ public class FilmService {
     }
 
     public List<FilmDto> getFilmsByDirector(Integer directorId, String sortBy) {
-
         log.debug("Retrieving films for director ID: {} sorted by {}", directorId, sortBy);
         List<Film> films = filmStorage.findAllByDirector(directorId, sortBy);
 
@@ -134,6 +138,9 @@ public class FilmService {
             throw new ValidationException(ErrorMessages.LIKE_ALREADY_EXISTS);
         }
         filmStorage.addLike(filmId, userId);
+
+        //  Логируем событие лайка
+        feedService.logEvent(userId, EventType.LIKE, Operation.ADD, filmId);
     }
 
     public void removeFilmLike(long filmId, long userId) {
@@ -148,6 +155,9 @@ public class FilmService {
         }
 
         filmStorage.removeLike(filmId, userId);
+
+        //  Логируем событие удаления лайка
+        feedService.logEvent(userId, EventType.LIKE, Operation.REMOVE, filmId);
     }
 
     public List<FilmDto> getCommonFilmsSortedByPopularity(Long userId, Long friendId) {
@@ -212,5 +222,13 @@ public class FilmService {
 
     private boolean isLikeExists(long filmId, long userId) {
         return filmStorage.isLikeExists(filmId, userId);
+    }
+
+    public List<FilmDto> searchFilms(String query, String by) {
+        log.debug("Searching films by query: {} in fields: {}", query, by);
+        List<Film> foundFilms = filmStorage.search(query, by);
+        return foundFilms.stream()
+                .map(filmMapper::toDto)
+                .toList();
     }
 }

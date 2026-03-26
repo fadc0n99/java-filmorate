@@ -106,4 +106,13 @@ public class FilmController {
         log.debug("Request received: GET /films/common?userId={userId}&friendId={friendId} - Returns a list of movies sorted by popularity");
         return filmService.getCommonFilmsSortedByPopularity(userId, friendId);
     }
+
+    @GetMapping("/search")
+    public List<FilmDto> search(@RequestParam String query, @RequestParam String by) {
+        log.info("Received search request: query='{}', by='{}'", query, by);
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        return filmService.searchFilms(query, by);
+    }
 }
