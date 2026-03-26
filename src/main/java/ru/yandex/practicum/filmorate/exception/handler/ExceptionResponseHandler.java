@@ -26,7 +26,7 @@ public class ExceptionResponseHandler {
     @ExceptionHandler({ValidationException.class, MethodArgumentNotValidException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleValidationException(Exception ex) {
-        log.warn("Validation error: {}", ex.getMessage());
+        log.error("Validation error: {}", ex.getMessage());
 
         if (ex instanceof MethodArgumentNotValidException validationEx) {
             List<String> errors = validationEx.getBindingResult()

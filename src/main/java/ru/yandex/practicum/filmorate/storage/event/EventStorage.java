@@ -7,6 +7,6 @@ public interface EventStorage {
 
     Event save(Event event);
 
-    List<Event> findFeedByUserId(Long userId, Integer count);
+    List<Event> findFeedByUserId(Long userId);
 }
 

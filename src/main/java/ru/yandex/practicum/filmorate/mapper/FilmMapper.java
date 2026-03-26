@@ -10,6 +10,7 @@ import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.Mpa;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Component
@@ -84,10 +85,14 @@ public final class FilmMapper {
                             .build())
                     .toList();
             film.setGenres(genres);
+        } else {
+            film.setGenres(Collections.emptyList());
         }
 
-        if (dto.getDirectors() != null) {
+        if (dto.hasDirectors()) {
             film.setDirectors(dto.getDirectors());
+        } else {
+            film.setDirectors(Collections.emptyList());
         }
 
         return film;

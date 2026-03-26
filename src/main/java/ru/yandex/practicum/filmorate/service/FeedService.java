@@ -1,32 +1,39 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.dto.event.EventDto;
+import ru.yandex.practicum.filmorate.exception.ErrorMessages;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Event;
 import ru.yandex.practicum.filmorate.model.EventType;
 import ru.yandex.practicum.filmorate.model.Operation;
 import ru.yandex.practicum.filmorate.storage.event.EventStorage;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class FeedService {
 
     private final EventStorage eventStorage;
+    private final UserStorage userStorage;
 
-    public List<EventDto> getUserFeed(Long userId, Integer count) {
-        log.debug("Getting feed for user {}, limit {}", userId, count);
+    @Autowired
+    public FeedService(EventStorage eventStorage,
+                       @Qualifier("userDbStorage") UserStorage userStorage) {
+        this.eventStorage = eventStorage;
+        this.userStorage = userStorage;
+    }
 
-        if (userId == null || userId <= 0) {
-            throw new NotFoundException("Invalid user ID: must be greater than 0");
-        }
+    public List<EventDto> getUserFeed(Long userId) {
+        validateUserExists(userId);
 
-        List<Event> events = eventStorage.findFeedByUserId(userId, count != null ? count : 10);
+        log.debug("Getting feed for user {}", userId);
+        List<Event> events = eventStorage.findFeedByUserId(userId);
 
         return events.stream()
                 .map(this::convertToDto)
@@ -58,6 +65,12 @@ public class FeedService {
                 .build();
         eventStorage.save(event);
         log.debug("Event logged: userId={}, type={}, op={}, entityId={}", userId, type, op, entityId);
+    }
+
+    private void validateUserExists(long userId) {
+        if (!userStorage.isExistById(userId)) {
+            throw new NotFoundException(ErrorMessages.userNotFound(userId));
+        }
     }
 }
 

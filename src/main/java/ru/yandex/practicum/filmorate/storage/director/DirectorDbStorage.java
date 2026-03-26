@@ -2,6 +2,8 @@ package ru.yandex.practicum.filmorate.storage.director;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
@@ -12,10 +14,12 @@ import java.util.Optional;
 @Repository("directorDbStorage")
 public class DirectorDbStorage extends BaseDbStorage<Director> implements DirectorStorage {
 
+    private final NamedParameterJdbcTemplate namedJdbc;
 
     public DirectorDbStorage(JdbcTemplate jdbc,
                              RowMapper<Director> rowMapper) {
         super(jdbc, rowMapper);
+        this.namedJdbc = new NamedParameterJdbcTemplate(jdbc);
     }
 
     @Override
@@ -55,5 +59,14 @@ public class DirectorDbStorage extends BaseDbStorage<Director> implements Direct
     public boolean isExistById(Integer id) {
         String sql = "SELECT EXISTS(SELECT 1 FROM directors WHERE director_id = ?)";
         return isExistOne(sql, id);
+    }
+
+    @Override
+    public boolean isExistByIds(List<Integer> directorsIds) {
+        String sql = "SELECT EXISTS(SELECT 1 FROM directors WHERE director_id IN (:ids))";
+
+        MapSqlParameterSource params = new MapSqlParameterSource("ids", directorsIds);
+
+        return Boolean.TRUE.equals(namedJdbc.queryForObject(sql, params, Boolean.class));
     }
 }

@@ -250,45 +250,6 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         }
     }
 
-    private void enrichFilmData(Film film) {
-        film.setGenres(jdbc.query(FIND_GENRES_BY_FILM_ID, genreRowMapper, film.getId()));
-        film.setDirectors(jdbc.query(FIND_DIRECTORS_BY_FILM_ID, directorRowMapper, film.getId()));
-    }
-
-    private void enrichFilmsData(List<Film> films) {
-        if (films.isEmpty()) return;
-        List<Long> ids = films.stream().map(Film::getId).toList();
-        MapSqlParameterSource params = new MapSqlParameterSource("ids", ids);
-
-        Map<Long, List<Genre>> genresMap = namedJdbc.query(
-                "SELECT fg.film_id, g.* FROM genres g JOIN film_genres fg ON g.id = fg.genre_id WHERE fg.film_id IN (:ids)", params, rs -> {
-                    Map<Long, List<Genre>> result = new HashMap<>();
-                    while (rs.next()) {
-                        result.computeIfAbsent(
-                                rs.getLong("film_id"),
-                                k -> new ArrayList<>()).add(genreRowMapper.mapRow(rs, rs.getRow())
-                        );
-                    }
-                    return result;
-                });
-
-        Map<Long, List<Director>> directorsMap = namedJdbc.query(
-                "SELECT fd.film_id, d.* FROM directors d JOIN film_directors fd ON d.director_id = fd.director_id WHERE fd.film_id IN (:ids)",
-                params, rs -> {
-                    Map<Long, List<Director>> result = new HashMap<>();
-                    while (rs.next()) {
-                        Director d = directorRowMapper.mapRow(rs, rs.getRow());
-                        result.computeIfAbsent(rs.getLong("film_id"), k -> new ArrayList<>()).add(d);
-                    }
-                    return result;
-                });
-
-        films.forEach(f -> {
-            f.setGenres(genresMap.getOrDefault(f.getId(), Collections.emptyList()));
-            f.setDirectors(directorsMap.getOrDefault(f.getId(), new ArrayList<>()));
-        });
-    }
-
     @Override
     public List<Film> getCommonFilms(Long userId, Long friendId) {
         List<Film> popularFilms = findMany(GET_COMMON_FILMS, userId, friendId);
@@ -302,7 +263,10 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     public List<Film> findFilmsByIds(List<Long> filmIds) {
         MapSqlParameterSource params = new MapSqlParameterSource("filmIds", filmIds);
 
-        return namedJdbc.query(FIND_FILMS_BY_IDS, params, rowMapper);
+        List<Film> films = namedJdbc.query(FIND_FILMS_BY_IDS, params, rowMapper);
+        enrichFilmsData(films);
+
+        return films;
     }
 
     @Override
@@ -354,5 +318,44 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             enrichFilmsData(films);
         }
         return films;
+    }
+
+    private void enrichFilmData(Film film) {
+        film.setGenres(jdbc.query(FIND_GENRES_BY_FILM_ID, genreRowMapper, film.getId()));
+        film.setDirectors(jdbc.query(FIND_DIRECTORS_BY_FILM_ID, directorRowMapper, film.getId()));
+    }
+
+    private void enrichFilmsData(List<Film> films) {
+        if (films.isEmpty()) return;
+        List<Long> ids = films.stream().map(Film::getId).toList();
+        MapSqlParameterSource params = new MapSqlParameterSource("ids", ids);
+
+        Map<Long, List<Genre>> genresMap = namedJdbc.query(
+                "SELECT fg.film_id, g.* FROM genres g JOIN film_genres fg ON g.id = fg.genre_id WHERE fg.film_id IN (:ids)", params, rs -> {
+                    Map<Long, List<Genre>> result = new HashMap<>();
+                    while (rs.next()) {
+                        result.computeIfAbsent(
+                                rs.getLong("film_id"),
+                                k -> new ArrayList<>()).add(genreRowMapper.mapRow(rs, rs.getRow())
+                        );
+                    }
+                    return result;
+                });
+
+        Map<Long, List<Director>> directorsMap = namedJdbc.query(
+                "SELECT fd.film_id, d.* FROM directors d JOIN film_directors fd ON d.director_id = fd.director_id WHERE fd.film_id IN (:ids)",
+                params, rs -> {
+                    Map<Long, List<Director>> result = new HashMap<>();
+                    while (rs.next()) {
+                        Director d = directorRowMapper.mapRow(rs, rs.getRow());
+                        result.computeIfAbsent(rs.getLong("film_id"), k -> new ArrayList<>()).add(d);
+                    }
+                    return result;
+                });
+
+        films.forEach(f -> {
+            f.setGenres(genresMap.getOrDefault(f.getId(), Collections.emptyList()));
+            f.setDirectors(directorsMap.getOrDefault(f.getId(), new ArrayList<>()));
+        });
     }
 }

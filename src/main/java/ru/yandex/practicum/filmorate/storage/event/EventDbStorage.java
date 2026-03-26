@@ -46,18 +46,17 @@ public class EventDbStorage extends BaseDbStorage<Event> implements EventStorage
     }
 
     @Override
-    public List<Event> findFeedByUserId(Long userId, Integer count) {
-        log.debug("Fetching feed for user {} (limit={})", userId, count);
+    public List<Event> findFeedByUserId(Long userId) {
+        log.debug("Fetching feed for user {})", userId);
 
         String sql = """
                 SELECT event_id, timestamp, user_id, event_type, operation, entity_id
                 FROM events
                 WHERE user_id = ?
                 ORDER BY timestamp ASC
-                LIMIT ?
                 """;
 
-        return findMany(sql, userId, count);
+        return findMany(sql, userId);
     }
 
     private static class EventRowMapper implements RowMapper<Event> {

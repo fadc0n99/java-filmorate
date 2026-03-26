@@ -20,12 +20,11 @@ public class FeedController {
 
     @GetMapping("/{id}/feed")
     public ResponseEntity<List<EventDto>> getUserFeed(
-            @PathVariable Long id,
-            @RequestParam(required = false) @Positive Integer count) {
+            @PathVariable Long id) {
 
-        log.debug("Request received: GET /users/{}/feed (count={})", id, count);
+        log.debug("Request received: GET /users/{}/feed", id);
 
-        List<EventDto> feed = feedService.getUserFeed(id, count);
+        List<EventDto> feed = feedService.getUserFeed(id);
 
         log.info("Retrieved {} events for user {}", feed.size(), id);
         return ResponseEntity.ok(feed);

@@ -14,9 +14,11 @@ import ru.yandex.practicum.filmorate.exception.ErrorMessages;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.mapper.FilmMapper;
+import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.EventType;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Operation;
+import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
@@ -33,6 +35,7 @@ public class FilmService {
     private final GenreStorage genreStorage;
     private final MpaStorage mpaStorage;
     private final UserStorage userStorage;
+    private final DirectorStorage directorStorage;
     private final FilmMapper filmMapper;
     private final FeedService feedService; // <-- Добавлено
 
@@ -43,10 +46,12 @@ public class FilmService {
                        GenreStorage genreStorage,
                        MpaStorage mpaStorage,
                        @Qualifier("userDbStorage") UserStorage userStorage,
+                       DirectorStorage directorStorage,
                        FilmMapper filmMapper,
                        FeedService feedService) { // <-- Добавлено
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
+        this.directorStorage = directorStorage;
         this.genreStorage = genreStorage;
         this.mpaStorage = mpaStorage;
         this.filmMapper = filmMapper;
@@ -65,9 +70,8 @@ public class FilmService {
     public FilmDto createFilm(CreateFilmDto createFilmDto) {
         log.debug("Starting add film: {}", createFilmDto);
         validateMpaRating(createFilmDto.getMpa());
-
-        List<GenreRequestDto> processedGenres = processGenres(createFilmDto.getGenres());
-        createFilmDto.setGenres(processedGenres);
+        validateGenres(createFilmDto.getGenres());
+        validateDirectors(createFilmDto.getDirectors());
 
         Film film = FilmMapper.toEntity(createFilmDto);
         validateReleaseDate(film);
@@ -79,9 +83,8 @@ public class FilmService {
     @Transactional
     public FilmDto updateFilm(UpdateFilmDto updateFilmDto) {
         validateMpaRating(updateFilmDto.getMpa());
-
-        List<GenreRequestDto> processedGenres = processGenres(updateFilmDto.getGenres());
-        updateFilmDto.setGenres(processedGenres);
+        validateGenres(updateFilmDto.getGenres());
+        validateDirectors(updateFilmDto.getDirectors());
 
         Film updatedFilm = filmStorage.findFilmById(updateFilmDto.getId())
                 .map(film -> FilmMapper.updateFilmFields(film, updateFilmDto))
@@ -93,7 +96,7 @@ public class FilmService {
         return filmMapper.toDto(updatedFilm);
     }
 
-    public FilmDto getFilm(long id) {
+    public FilmDto getFilm(Long id) {
         log.debug("Retrieving film by ID: {}", id);
 
         return filmStorage.findFilmById(id)
@@ -111,6 +114,8 @@ public class FilmService {
     }
 
     public List<FilmDto> getFilmsByDirector(Integer directorId, String sortBy) {
+        validateDirectorsExists(directorId);
+
         log.debug("Retrieving films for director ID: {} sorted by {}", directorId, sortBy);
         List<Film> films = filmStorage.findAllByDirector(directorId, sortBy);
 
@@ -127,41 +132,36 @@ public class FilmService {
                 .toList();
     }
 
-    public void addFilmLike(long filmId, long userId) {
+    public void addFilmLike(Long filmId, Long userId) {
         validateFilmExists(filmId);
         validateUserExists(userId);
 
         log.debug("Adding like. Film: {}, User: {}", filmId, userId);
-
-        if (isLikeExists(filmId, userId)) {
-            log.error("User {} already liked film {}", userId, filmId);
-            throw new ValidationException(ErrorMessages.LIKE_ALREADY_EXISTS);
+        if (!filmStorage.isLikeExists(filmId, userId)) {
+            filmStorage.addLike(filmId, userId);
+        } else {
+            log.warn("User {} already liked film {}", userId, filmId);
         }
-        filmStorage.addLike(filmId, userId);
-
-        //  Логируем событие лайка
         feedService.logEvent(userId, EventType.LIKE, Operation.ADD, filmId);
     }
 
-    public void removeFilmLike(long filmId, long userId) {
+    public void removeFilmLike(Long filmId, Long userId) {
         validateFilmExists(filmId);
         validateUserExists(userId);
 
         log.debug("Removing like. Film: {}, User: {}", filmId, userId);
 
-        if (!isLikeExists(filmId, userId)) {
+        if (!filmStorage.isLikeExists(filmId, userId)) {
             log.error("Cannot remove non-existent like. Film: {}, User: {}", filmId, userId);
-            throw new ValidationException(ErrorMessages.LIKE_NOT_EXISTS);
+            throw new NotFoundException(ErrorMessages.LIKE_NOT_EXISTS);
         }
 
         filmStorage.removeLike(filmId, userId);
-
-        //  Логируем событие удаления лайка
         feedService.logEvent(userId, EventType.LIKE, Operation.REMOVE, filmId);
     }
 
     public List<FilmDto> getCommonFilmsSortedByPopularity(Long userId, Long friendId) {
-        log.debug("list of movies sorted by popularity");
+        log.debug("List of movies sorted by popularity");
         validateUserExists(userId);
         validateUserExists(friendId);
 
@@ -171,15 +171,28 @@ public class FilmService {
                 .toList();
     }
 
+    public List<FilmDto> searchFilms(String query, String by) {
+        log.debug("Searching films by query: {} in fields: {}", query, by);
+        List<Film> foundFilms = filmStorage.search(query, by);
+        return foundFilms.stream()
+                .map(filmMapper::toDto)
+                .toList();
+    }
+
     // --- Вспомогательные методы ---
 
-    private List<GenreRequestDto> processGenres(List<GenreRequestDto> genres) {
-        if (genres == null || genres.isEmpty()) return Collections.emptyList();
+    private void validateGenres(List<GenreRequestDto> genres) {
+        if (genres != null && !genres.isEmpty()) {
+            List<Long> ids = genres.stream().map(GenreRequestDto::getId).toList();
+            validateGenreExists(ids);
+        }
+    }
 
-        List<Long> ids = genres.stream().map(GenreRequestDto::getId).toList();
-        validateGenresExist(ids);
-
-        return genres;
+    private void validateDirectors(List<Director> directors) {
+        if (directors != null && !directors.isEmpty()) {
+            List<Integer> ids = directors.stream().map(Director::getId).toList();
+            validateDirectorsExists(ids);
+        }
     }
 
     private void validateReleaseDate(Film film) {
@@ -196,39 +209,39 @@ public class FilmService {
         validateMpaExists(mpaRequestDto.getId());
     }
 
-    private void validateFilmExists(long filmId) {
+    private void validateFilmExists(Long filmId) {
         if (!filmStorage.isExistById(filmId)) {
             throw new NotFoundException(ErrorMessages.filmNotFound(filmId));
         }
     }
 
-    private void validateUserExists(long userId) {
+    private void validateUserExists(Long userId) {
         if (!userStorage.isExistById(userId)) {
             throw new NotFoundException(ErrorMessages.userNotFound(userId));
         }
     }
 
-    private void validateMpaExists(long mpaId) {
+    private void validateMpaExists(Long mpaId) {
         if (!mpaStorage.isExistById(mpaId)) {
             throw new NotFoundException(ErrorMessages.mpaNotFound(mpaId));
         }
     }
 
-    private void validateGenresExist(List<Long> genreIds) {
+    private void validateGenreExists(List<Long> genreIds) {
         if (!genreStorage.isExistByIds(genreIds)) {
             throw new NotFoundException(ErrorMessages.GENRES_NOT_FOUND);
         }
     }
 
-    private boolean isLikeExists(long filmId, long userId) {
-        return filmStorage.isLikeExists(filmId, userId);
+    private void validateDirectorsExists(Integer directorId) {
+        if (!directorStorage.isExistById(directorId)) {
+            throw new NotFoundException(ErrorMessages.directorNotFound(directorId));
+        }
     }
 
-    public List<FilmDto> searchFilms(String query, String by) {
-        log.debug("Searching films by query: {} in fields: {}", query, by);
-        List<Film> foundFilms = filmStorage.search(query, by);
-        return foundFilms.stream()
-                .map(filmMapper::toDto)
-                .toList();
+    private void validateDirectorsExists(List<Integer> directorsIds) {
+        if (!directorStorage.isExistByIds(directorsIds)) {
+            throw new NotFoundException(ErrorMessages.DIRECTORS_NOT_FOUND);
+        }
     }
 }

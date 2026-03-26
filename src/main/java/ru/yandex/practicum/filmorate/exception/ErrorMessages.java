@@ -8,6 +8,7 @@ public final class ErrorMessages {
     }
 
     public static final String GENRES_NOT_FOUND = "One or more genres not found";
+    public static final String DIRECTORS_NOT_FOUND = "One or more directors not found";
     public static final String RELEASE_DATE_INVALID = "Release date must be after %s";
     public static final String MPA_REQUIRED = "MPA rating is required for film";
     public static final String LIKE_ALREADY_EXISTS = "User has already liked this film";
