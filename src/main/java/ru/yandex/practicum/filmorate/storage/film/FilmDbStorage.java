@@ -99,22 +99,22 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
      * Like queries
      */
     private static final String INSERT_LIKE_FILM = """
-        INSERT INTO film_likes (film_id, user_id, liked_at)
-        VALUES (?, ?, ?)
-        """;
+            INSERT INTO film_likes (film_id, user_id, liked_at)
+            VALUES (?, ?, ?)
+            """;
 
     private static final String EXIST_USER_LIKE = """
-        SELECT EXISTS(
-            SELECT 1
-            FROM film_likes
-            WHERE film_id = ? AND user_id = ?
-        )
-        """;
+            SELECT EXISTS(
+                SELECT 1
+                FROM film_likes
+                WHERE film_id = ? AND user_id = ?
+            )
+            """;
 
     private static final String DELETE_LIKE = """
-        DELETE FROM film_likes
-        WHERE film_id = ? AND user_id = ?
-        """;
+            DELETE FROM film_likes
+            WHERE film_id = ? AND user_id = ?
+            """;
     private static final String USER_LIKES = "SELECT film_id, user_id FROM FILM_LIKES";
     private static final String USER_LIKES_BY_ID = "SELECT film_id FROM FILM_LIKES WHERE user_id = ?";
 
@@ -186,7 +186,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public List<Film> getPopularFilms(Integer count, Integer genreId, Integer year) {
-        List<Film> films = findMany(FIND_POPULAR_FILMS,  year, year, genreId, genreId, count);
+        List<Film> films = findMany(FIND_POPULAR_FILMS, year, year, genreId, genreId, count);
         enrichFilmsData(films);
         return films;
     }
@@ -307,5 +307,35 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
             return result;
         });
+    }
+
+    public List<Film> search(String query, String by) {
+        String searchPattern = "%" + query.toLowerCase() + "%";
+        StringBuilder sql = new StringBuilder(
+                "SELECT f.*, m.*, COUNT(fl.user_id) AS rate " +
+                        "FROM films f " +
+                        "LEFT JOIN mpa_ratings m ON f.mpa_rating_id = m.mpa_id " +
+                        "LEFT JOIN film_directors fd ON f.id = fd.film_id " +
+                        "LEFT JOIN directors d ON fd.director_id = d.director_id " +
+                        "LEFT JOIN film_likes fl ON f.id = fl.film_id "
+        );
+        List<Object> params = new ArrayList<>();
+        if (by.contains("director") && by.contains("title")) {
+            sql.append("WHERE LOWER(f.name) LIKE ? OR LOWER(d.director_name) LIKE ? ");
+            params.add(searchPattern);
+            params.add(searchPattern);
+        } else if (by.contains("director")) {
+            sql.append("WHERE LOWER(d.director_name) LIKE ? ");
+            params.add(searchPattern);
+        } else {
+            sql.append("WHERE LOWER(f.name) LIKE ? ");
+            params.add(searchPattern);
+        }
+        sql.append("GROUP BY f.id, m.mpa_id, m.mpa_name, m.description ORDER BY rate DESC");
+        List<Film> films = findMany(sql.toString(), params.toArray());
+        if (!films.isEmpty()) {
+            enrichFilmsData(films);
+        }
+        return films;
     }
 }

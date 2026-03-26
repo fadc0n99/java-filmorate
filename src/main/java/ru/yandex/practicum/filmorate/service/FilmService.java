@@ -46,9 +46,9 @@ public class FilmService {
                        FilmMapper filmMapper,
                        FeedService feedService) { // <-- Добавлено
         this.filmStorage = filmStorage;
+        this.userStorage = userStorage;
         this.genreStorage = genreStorage;
         this.mpaStorage = mpaStorage;
-        this.userStorage = userStorage;
         this.filmMapper = filmMapper;
         this.feedService = feedService; // <-- Добавлено
     }
@@ -213,5 +213,13 @@ public class FilmService {
 
     private boolean isLikeExists(long filmId, long userId) {
         return filmStorage.isLikeExists(filmId, userId);
+    }
+
+    public List<FilmDto> searchFilms(String query, String by) {
+        log.debug("Searching films by query: {} in fields: {}", query, by);
+        List<Film> foundFilms = filmStorage.search(query, by);
+        return foundFilms.stream()
+                .map(filmMapper::toDto)
+                .toList();
     }
 }

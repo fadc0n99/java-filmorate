@@ -16,5 +16,4 @@ public final class DirectorMapper {
                 .name(dto.getName())
                 .build();
     }
-
 }
