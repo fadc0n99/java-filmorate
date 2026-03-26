@@ -11,8 +11,11 @@ import ru.yandex.practicum.filmorate.exception.ErrorMessages;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.mapper.UserMapper;
+import ru.yandex.practicum.filmorate.model.EventType;
+import ru.yandex.practicum.filmorate.model.Operation;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
+import org.springframework.context.annotation.Lazy; //добавлено
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,10 +25,13 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserStorage userStorage;
+    private final FeedService feedService; // <-- ДОБАВЛЕНО
 
     @Autowired
-    public UserService(@Qualifier("userDbStorage") UserStorage userStorage) {
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage,
+                       @Lazy FeedService feedService) { // <-- ДОБАВЛЕНО
         this.userStorage = userStorage;
+        this.feedService = feedService; // <-- ДОБАВЛЕНО
     }
 
     public List<UserDto> findAllUsers() {
@@ -89,6 +95,9 @@ public class UserService {
         }
 
         userStorage.addFriendship(userId, friendId);
+
+        feedService.logEvent(userId, EventType.FRIEND, Operation.ADD, friendId);
+
         log.info("Friendship added between user {} and user {}", userId, friendId);
     }
 
@@ -109,6 +118,10 @@ public class UserService {
 
         if (areFriends(userId, friendId)) {
             userStorage.removeFriendship(userId, friendId);
+
+            // Логируем событие удаления друга в ленту
+            feedService.logEvent(userId, EventType.FRIEND, Operation.REMOVE, friendId);
+
             log.info("Friendship removed between user {} and user {}", userId, friendId);
         } else {
             log.warn("Friendship not found between user {} and user {}", userId, friendId);
