@@ -35,4 +35,7 @@ public interface FilmStorage {
     public Map<Long, List<Long>> findAllUsersLikedFilmIds();
 
     List<Film> findAllByDirector(long directorId, String sortBy);
+
+    void delete(Long id);
+
 }

@@ -66,6 +66,17 @@ public class UserController {
         return new ResponseEntity<>(user, HttpStatus.OK);
     }
 
+    // эндпоинт для удаления пользователя
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> handleDeleteUser(@PathVariable @Positive long id) {
+        log.debug("Request received: DELETE /users/{} - deleting user", id);
+
+        userService.deleteUser(id);
+
+        log.info("User {} deleted successfully", id);
+        return ResponseEntity.noContent().build(); // Возвращаем 204 No Content
+    }
+
     @GetMapping("/{id}/friends")
     public ResponseEntity<List<UserDto>> handleGetUserFriends(@PathVariable long id) {
         log.debug("Request received: GET /users/{}/friends - retrieving friends for user", id);

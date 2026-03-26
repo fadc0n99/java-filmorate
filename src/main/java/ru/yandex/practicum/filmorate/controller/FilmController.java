@@ -50,6 +50,15 @@ public class FilmController {
         return filmService.getFilm(id);
     }
 
+    //  эндпоинт для удаления фильма
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void handleDeleteFilm(@PathVariable long id) {
+        log.debug("Request received: DELETE /films/{} - deleting film", id);
+        filmService.deleteFilm(id);
+        log.info("Film {} deleted successfully", id);
+    }
+
     @PutMapping("/{id}/like/{userId}")
     @ResponseStatus(HttpStatus.OK)
     public void handleAddFilmLike(@PathVariable(value = "id") long filmId, @PathVariable long userId) {

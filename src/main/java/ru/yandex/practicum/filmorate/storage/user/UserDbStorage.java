@@ -3,6 +3,8 @@ package ru.yandex.practicum.filmorate.storage.user;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import ru.yandex.practicum.filmorate.exception.ErrorMessages;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 
@@ -72,6 +74,8 @@ public class UserDbStorage extends BaseDbStorage<User> implements UserStorage {
         WHERE f1.user_id = ? AND f2.user_id = ?
     )
     """;
+
+    private static final String DELETE_USER_QUERY = "DELETE FROM users WHERE id = ?";
 
     public UserDbStorage(JdbcTemplate jdbcTemplate, RowMapper<User> rowMapper) {
         super(jdbcTemplate, rowMapper);
@@ -155,4 +159,12 @@ public class UserDbStorage extends BaseDbStorage<User> implements UserStorage {
     public List<User> getUsersCommonFriends(long userId, long otherUserId) {
         return findMany(FIND_COMMON_FRIENDS, userId, otherUserId);
     }
+
+    @Override
+    public void delete(Long id) {
+        if (!delete(DELETE_USER_QUERY, id)) {
+            throw new NotFoundException(ErrorMessages.userNotFound(id));
+        }
+    }
 }
+

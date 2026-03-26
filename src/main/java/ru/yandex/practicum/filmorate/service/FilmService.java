@@ -96,6 +96,15 @@ public class FilmService {
                 .orElseThrow(() -> new NotFoundException(ErrorMessages.filmNotFound(id)));
     }
 
+    // метод для удаления фильма
+    @Transactional
+    public void deleteFilm(Long filmId) {
+        log.debug("Deleting film with ID: {}", filmId);
+        validateFilmExists(filmId);
+        filmStorage.delete(filmId);
+        log.info("Film {} deleted successfully", filmId);
+    }
+
     public List<FilmDto> getFilmsByDirector(Integer directorId, String sortBy) {
 
         log.debug("Retrieving films for director ID: {} sorted by {}", directorId, sortBy);
