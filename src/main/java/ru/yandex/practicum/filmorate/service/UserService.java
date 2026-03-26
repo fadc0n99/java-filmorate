@@ -84,6 +84,14 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException(ErrorMessages.userNotFound(userId)));
     }
 
+    // метод для удаления пользователя
+    public void deleteUser(Long userId) {
+        log.debug("Deleting user with ID: {}", userId);
+        validateUserExists(userId);
+        userStorage.delete(userId);
+        log.info("User {} deleted successfully", userId);
+    }
+
     public void addFriend(long userId, long friendId) {
         checkUsersCanInteract(userId, friendId);
 
@@ -160,5 +168,4 @@ public class UserService {
             throw new NotFoundException(ErrorMessages.userNotFound(userId));
         }
     }
-
 }

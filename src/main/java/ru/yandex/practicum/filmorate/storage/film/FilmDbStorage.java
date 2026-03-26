@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.yandex.practicum.filmorate.exception.ErrorMessages;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
@@ -25,26 +26,33 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             FROM films f
             LEFT JOIN mpa_ratings m ON f.mpa_rating_id = m.mpa_id
             """;
+
     private static final String FIND_FILM_BY_ID = """
             SELECT f.*, m.*
             FROM films f
             LEFT JOIN mpa_ratings m ON f.mpa_rating_id = m.mpa_id
             WHERE f.id = ?
             """;
+
     private static final String FIND_FILMS_BY_IDS = """
             SELECT f.*, m.*
             FROM films f
             LEFT JOIN mpa_ratings m ON f.mpa_rating_id = m.mpa_id
             WHERE f.id in (:filmIds)
             """;
+
     private static final String INSERT_FILM_QUERY = """
             INSERT INTO films (name, description, release_date, duration, mpa_rating_id, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """;
+
     private static final String UPDATE_FILM_QUERY = """
             UPDATE films SET name = ?, description = ?, release_date = ?, duration = ?, mpa_rating_id = ?
             WHERE id = ?
             """;
+
+    private static final String DELETE_FILM_QUERY = "DELETE FROM films WHERE id = ?";  //  Добавлено
+
     private static final String FIND_BY_DIRECTOR_YEAR = """
             SELECT f.*, m.*
             FROM films f
@@ -53,6 +61,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             WHERE fd.director_id = ?
             ORDER BY f.release_date
             """;
+
     private static final String FIND_BY_DIRECTOR_LIKES = """
             SELECT f.*, m.*
             FROM films f
@@ -211,6 +220,14 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     @Override
     public boolean isExistById(long id) {
         return isExistOne(EXISTS_FILM_BY_ID, id);
+    }
+
+    //  метод для удаления фильма
+    @Override
+    public void delete(Long id) {
+        if (!delete(DELETE_FILM_QUERY, id)) {  // Метод delete() из BaseDbStorage
+            throw new NotFoundException(ErrorMessages.filmNotFound(id));
+        }
     }
 
     private void updateRelations(Film film) {

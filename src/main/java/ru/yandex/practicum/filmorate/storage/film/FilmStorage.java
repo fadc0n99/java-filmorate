@@ -37,4 +37,7 @@ public interface FilmStorage {
     List<Film> findAllByDirector(long directorId, String sortBy);
 
     List<Film> search(String query, String by);
+
+    void delete(Long id);
+
 }
