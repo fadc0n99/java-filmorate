@@ -52,7 +52,6 @@ public class ReviewService {
         Review review = ReviewMapper.toEntity(reviewDto);
         review = reviewStorage.save(review);
 
-        // ✅ Логируем событие создания отзыва
         feedService.logEvent(
                 review.getUserId(),
                 EventType.REVIEW,
@@ -73,7 +72,6 @@ public class ReviewService {
 
         review = reviewStorage.update(review);
 
-        // ✅ Логируем событие обновления отзыва
         feedService.logEvent(
                 review.getUserId(),
                 EventType.REVIEW,
@@ -86,13 +84,11 @@ public class ReviewService {
 
     @Transactional
     public void deleteReview(Long id) {
-        // Находим отзыв перед удалением, чтобы получить userId для события
         Review review = reviewStorage.findById(id)
                 .orElseThrow(() -> new NotFoundException(ErrorMessages.reviewNotFound(id)));
 
         reviewStorage.delete(id);
 
-        // ✅ Логируем событие удаления отзыва
         feedService.logEvent(
                 review.getUserId(),
                 EventType.REVIEW,

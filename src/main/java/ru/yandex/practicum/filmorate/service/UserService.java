@@ -36,7 +36,6 @@ public class UserService {
 
     public List<UserDto> findAllUsers() {
         log.debug("Retrieving all users from storage");
-
         List<User> users = userStorage.findAll();
 
         return users
@@ -49,8 +48,6 @@ public class UserService {
         User newUser = UserMapper.toEntity(requestUserDto);
 
         log.debug("Starting user creation: {}", newUser);
-
-
         // Если имя не указано, то используем логин как имя
         if (newUser.getName() == null || newUser.getName().isBlank()) {
             log.info("User name is null. Setting name to login value. User ID: {}, Login: {}",
@@ -96,7 +93,6 @@ public class UserService {
         checkUsersCanInteract(userId, friendId);
 
         log.debug("Attempting to add friend relationship. User ID: {}, Friend ID: {}", userId, friendId);
-
         if (areFriends(userId, friendId)) {
             log.warn("Friendship already exists between user {} and user {}", userId, friendId);
             return;
@@ -105,7 +101,6 @@ public class UserService {
         userStorage.addFriendship(userId, friendId);
 
         feedService.logEvent(userId, EventType.FRIEND, Operation.ADD, friendId);
-
         log.info("Friendship added between user {} and user {}", userId, friendId);
     }
 
@@ -113,7 +108,6 @@ public class UserService {
         validateUserExists(userId);
 
         log.debug("Retrieving friends for user ID: {}", userId);
-
         return userStorage.getUserFriends(userId).stream()
                 .map(UserMapper::toDto)
                 .collect(Collectors.toList());
@@ -123,14 +117,11 @@ public class UserService {
         checkUsersCanInteract(userId, friendId);
 
         log.debug("Attempting to remove friend relationship. User ID: {}, Friend ID: {}", userId, friendId);
-
         if (areFriends(userId, friendId)) {
             userStorage.removeFriendship(userId, friendId);
-
-            // Логируем событие удаления друга в ленту
-            feedService.logEvent(userId, EventType.FRIEND, Operation.REMOVE, friendId);
-
             log.info("Friendship removed between user {} and user {}", userId, friendId);
+
+            feedService.logEvent(userId, EventType.FRIEND, Operation.REMOVE, friendId);
         } else {
             log.warn("Friendship not found between user {} and user {}", userId, friendId);
         }
@@ -149,7 +140,6 @@ public class UserService {
 
     private boolean areFriends(long userId, long friendId) {
         boolean isFriend = userStorage.isFriend(userId, friendId);
-
         log.trace("Friendship check. User ID: {}, Friend ID: {}, Result: {}", userId, friendId, isFriend);
         return isFriend;
     }
