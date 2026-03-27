@@ -1,7 +1,7 @@
 package ru.yandex.practicum.filmorate.mapper;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import ru.yandex.practicum.filmorate.dto.film.CreateFilmDto;
 import ru.yandex.practicum.filmorate.dto.film.FilmDto;
 import ru.yandex.practicum.filmorate.dto.film.UpdateFilmDto;
@@ -13,11 +13,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-@Component
-@RequiredArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class FilmMapper {
-
-    private final MpaMapper mpaMapper;
 
     public static Film toEntity(CreateFilmDto requestDto) {
         List<Genre> genres = requestDto.getGenres() != null ?
@@ -41,14 +38,14 @@ public final class FilmMapper {
                 .build();
     }
 
-    public FilmDto toDto(Film film) {
+    public static FilmDto toDto(Film film) {
         return FilmDto.builder()
                 .id(film.getId())
                 .name(film.getName())
                 .description(film.getDescription())
                 .releaseDate(film.getReleaseDate())
                 .duration(film.getDuration())
-                .mpa(mpaMapper.toDto(film.getMpa()))
+                .mpa(MpaMapper.toDto(film.getMpa()))
                 .genres(film.getGenres())
                 .directors(film.getDirectors())
                 .build();

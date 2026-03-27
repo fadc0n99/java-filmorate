@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.dto.event.EventDto;
+import ru.yandex.practicum.filmorate.mapper.EventMapper;
 import ru.yandex.practicum.filmorate.model.Event;
 import ru.yandex.practicum.filmorate.model.EventType;
 import ru.yandex.practicum.filmorate.model.Operation;
@@ -33,19 +34,8 @@ public class FeedService {
         List<Event> events = eventStorage.findFeedByUserId(userId);
 
         return events.stream()
-                .map(this::convertToDto)
+                .map(EventMapper::toDto)
                 .toList();
-    }
-
-    private EventDto convertToDto(Event event) {
-        return EventDto.builder()
-                .eventId(event.getEventId())
-                .timestamp(event.getTimestamp())
-                .userId(event.getUserId())
-                .eventType(event.getEventType().getValue())
-                .operation(event.getOperation().getValue())
-                .entityId(event.getEntityId())
-                .build();
     }
 
     public void saveEvent(Long userId, EventType type, Operation op, Long entityId) {

@@ -24,17 +24,14 @@ import java.util.*;
 public class FilmService {
 
     private final FilmStorage filmStorage;
-    private final FilmMapper filmMapper;
     private final FeedService feedService;
     private final ValidationUtils validationUtils;
 
     @Autowired
     public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
-                       FilmMapper filmMapper,
                        ValidationUtils validationUtils,
                        FeedService feedService) {
         this.filmStorage = filmStorage;
-        this.filmMapper = filmMapper;
         this.validationUtils = validationUtils;
         this.feedService = feedService;
     }
@@ -43,7 +40,7 @@ public class FilmService {
         log.debug("Retrieving all films from storage");
         List<Film> films = filmStorage.findAll();
         return films.stream()
-                .map(filmMapper::toDto)
+                .map(FilmMapper::toDto)
                 .toList();
     }
 
@@ -58,7 +55,7 @@ public class FilmService {
         validationUtils.validateMinFilmDate(film);
 
         film = filmStorage.save(film);
-        return filmMapper.toDto(film);
+        return FilmMapper.toDto(film);
     }
 
     @Transactional
@@ -74,14 +71,14 @@ public class FilmService {
         validationUtils.validateMinFilmDate(updatedFilm);
         updatedFilm = filmStorage.update(updatedFilm);
 
-        return filmMapper.toDto(updatedFilm);
+        return FilmMapper.toDto(updatedFilm);
     }
 
     public FilmDto getFilm(Long id) {
         log.debug("Retrieving film by ID: {}", id);
 
         return filmStorage.findFilmById(id)
-                .map(filmMapper::toDto)
+                .map(FilmMapper::toDto)
                 .orElseThrow(() -> new NotFoundException(ErrorMessages.filmNotFound(id)));
     }
 
@@ -101,7 +98,7 @@ public class FilmService {
         List<Film> films = filmStorage.findAllByDirector(directorId, sortBy);
 
         return films.stream()
-                .map(filmMapper::toDto)
+                .map(FilmMapper::toDto)
                 .toList();
     }
 
@@ -109,7 +106,7 @@ public class FilmService {
         log.debug("Getting top {} popular films", count);
         List<Film> popularFilms = filmStorage.getPopularFilms(count, genreId, year);
         return popularFilms.stream()
-                .map(filmMapper::toDto)
+                .map(FilmMapper::toDto)
                 .toList();
     }
 
@@ -148,7 +145,7 @@ public class FilmService {
 
         List<Film> commonFilms = filmStorage.getCommonFilms(userId, friendId);
         return commonFilms.stream()
-                .map(filmMapper::toDto)
+                .map(FilmMapper::toDto)
                 .toList();
     }
 
@@ -156,7 +153,7 @@ public class FilmService {
         log.debug("Searching films by query: {} in fields: {}", query, by);
         List<Film> foundFilms = filmStorage.search(query, by);
         return foundFilms.stream()
-                .map(filmMapper::toDto)
+                .map(FilmMapper::toDto)
                 .toList();
     }
 }

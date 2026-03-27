@@ -20,15 +20,12 @@ import java.util.stream.Collectors;
 public class RecommendationService {
 
     private final FilmStorage filmStorage;
-    private final FilmMapper filmMapper;
     private final ValidationUtils validationUtils;
 
     @Autowired
     public RecommendationService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
-                                 FilmMapper filmMapper,
                                  ValidationUtils validationUtils) {
         this.filmStorage = filmStorage;
-        this.filmMapper = filmMapper;
         this.validationUtils = validationUtils;
     }
 
@@ -52,7 +49,7 @@ public class RecommendationService {
 
         return filmStorage.findFilmsByIds(recommendations)
                 .stream()
-                .map(filmMapper::toDto)
+                .map(FilmMapper::toDto)
                 .toList();
 
     }
