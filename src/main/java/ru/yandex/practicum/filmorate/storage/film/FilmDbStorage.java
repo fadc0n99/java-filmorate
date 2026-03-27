@@ -41,17 +41,17 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             WHERE f.id in (:filmIds)
             """;
 
-    private static final String INSERT_FILM_QUERY = """
+    private static final String INSERT_FILM = """
             INSERT INTO films (name, description, release_date, duration, mpa_rating_id, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """;
 
-    private static final String UPDATE_FILM_QUERY = """
+    private static final String UPDATE_FILM = """
             UPDATE films SET name = ?, description = ?, release_date = ?, duration = ?, mpa_rating_id = ?
             WHERE id = ?
             """;
 
-    private static final String DELETE_FILM_QUERY = "DELETE FROM films WHERE id = ?";  //  Добавлено
+    private static final String DELETE_FILM = "DELETE FROM films WHERE id = ?";
 
     private static final String FIND_BY_DIRECTOR_YEAR = """
             SELECT f.*, m.*
@@ -107,12 +107,12 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     /**
      * Like queries
      */
-    private static final String INSERT_LIKE_FILM = """
+    private static final String INSERT_LIKE = """
             INSERT INTO film_likes (film_id, user_id, liked_at)
             VALUES (?, ?, ?)
             """;
 
-    private static final String EXIST_USER_LIKE = """
+    private static final String EXISTS_USER_LIKE = """
             SELECT EXISTS(
                 SELECT 1
                 FROM film_likes
@@ -124,8 +124,17 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             DELETE FROM film_likes
             WHERE film_id = ? AND user_id = ?
             """;
+
     private static final String USER_LIKES = "SELECT film_id, user_id FROM FILM_LIKES";
     private static final String USER_LIKES_BY_ID = "SELECT film_id FROM FILM_LIKES WHERE user_id = ?";
+
+    /**
+     * Genre and director queries
+     */
+    private static final String DELETE_FILM_GENRES = "DELETE FROM film_genres WHERE film_id = ?";
+    private static final String INSERT_FILM_GENRE = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
+    private static final String DELETE_FILM_DIRECTORS = "DELETE FROM film_directors WHERE film_id = ?";
+    private static final String INSERT_FILM_DIRECTOR = "INSERT INTO film_directors (film_id, director_id) VALUES (?, ?)";
 
     private static final String FIND_GENRES_BY_FILM_ID =
             "SELECT g.* FROM genres g JOIN film_genres fg ON g.id = fg.genre_id WHERE fg.film_id = ?";
@@ -133,17 +142,21 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     private static final String FIND_DIRECTORS_BY_FILM_ID =
             "SELECT d.* FROM directors d JOIN film_directors fd ON d.director_id = fd.director_id WHERE fd.film_id = ?";
 
+    private static final String FIND_GENRES_BY_FILM_IDS =
+            "SELECT fg.film_id, g.* FROM genres g JOIN film_genres fg ON g.id = fg.genre_id WHERE fg.film_id IN (:ids)";
+
+    private static final String FIND_DIRECTORS_BY_FILM_IDS =
+            "SELECT fd.film_id, d.* FROM directors d JOIN film_directors fd ON d.director_id = fd.director_id WHERE fd.film_id IN (:ids)";
+
     private final RowMapper<Director> directorRowMapper;
     private final RowMapper<Genre> genreRowMapper;
-    private final NamedParameterJdbcTemplate namedJdbc;
 
     public FilmDbStorage(JdbcTemplate jdbc,
                          RowMapper<Film> rowMapper,
                          RowMapper<Director> directorRowMapper,
                          RowMapper<Genre> genreRowMapper,
                          NamedParameterJdbcTemplate namedJdbc) {
-        super(jdbc, rowMapper);
-        this.namedJdbc = namedJdbc;
+        super(jdbc, namedJdbc, rowMapper);
         this.directorRowMapper = directorRowMapper;
         this.genreRowMapper = genreRowMapper;
     }
@@ -151,9 +164,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     @Override
     public List<Film> findAll() {
         List<Film> films = findMany(FIND_ALL_FILMS);
-
         enrichFilmsData(films);
-
         return films;
     }
 
@@ -166,7 +177,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public Film save(Film newFilm) {
-        long id = insert(INSERT_FILM_QUERY,
+        long id = insert(INSERT_FILM,
                 newFilm.getName(), newFilm.getDescription(), newFilm.getReleaseDate(),
                 newFilm.getDuration(), newFilm.getMpa().getId(), LocalDateTime.now());
         newFilm.setId(id);
@@ -176,7 +187,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public Film update(Film film) {
-        update(UPDATE_FILM_QUERY, film.getName(), film.getDescription(), film.getReleaseDate(),
+        update(UPDATE_FILM, film.getName(), film.getDescription(), film.getReleaseDate(),
                 film.getDuration(), film.getMpa().getId(), film.getId());
         updateRelations(film);
         enrichFilmData(film);
@@ -202,8 +213,7 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public void addLike(long filmId, long userId) {
-        insert(INSERT_LIKE_FILM,
-                filmId, userId, LocalDateTime.now());
+        insert(INSERT_LIKE, filmId, userId, LocalDateTime.now());
     }
 
     @Override
@@ -213,79 +223,51 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public boolean isLikeExists(long filmId, long userId) {
-        return isExistOne(EXIST_USER_LIKE,
-                filmId, userId);
+        return exists(EXISTS_USER_LIKE, filmId, userId);
     }
 
     @Override
     public boolean isExistById(long id) {
-        return isExistOne(EXISTS_FILM_BY_ID, id);
+        return exists(EXISTS_FILM_BY_ID, id);
     }
 
-    //  метод для удаления фильма
     @Override
     public void delete(Long id) {
-        if (!delete(DELETE_FILM_QUERY, id)) {  // Метод delete() из BaseDbStorage
+        if (!delete(DELETE_FILM, id)) {
             throw new NotFoundException(ErrorMessages.filmNotFound(id));
-        }
-    }
-
-    private void updateRelations(Film film) {
-        // Жанры
-        updateWithoutCheck("DELETE FROM film_genres WHERE film_id = ?", film.getId());
-        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            List<Object[]> batchArgs = film.getGenres().stream()
-                    .distinct()
-                    .map(genre -> new Object[]{film.getId(), genre.getId()})
-                    .toList();
-            batchUpdate("INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)", batchArgs);
-        }
-
-        updateWithoutCheck("DELETE FROM film_directors WHERE film_id = ?", film.getId());
-        if (film.getDirectors() != null && !film.getDirectors().isEmpty()) {
-            List<Object[]> batchArgs = film.getDirectors().stream()
-                    .map(d -> new Object[]{film.getId(), d.getId()})
-                    .toList();
-            batchUpdate("INSERT INTO film_directors (film_id, director_id) VALUES (?, ?)", batchArgs);
         }
     }
 
     @Override
     public List<Film> getCommonFilms(Long userId, Long friendId) {
         List<Film> popularFilms = findMany(GET_COMMON_FILMS, userId, friendId);
-
         enrichFilmsData(popularFilms);
-
         return popularFilms;
     }
 
     @Override
     public List<Film> findFilmsByIds(List<Long> filmIds) {
         MapSqlParameterSource params = new MapSqlParameterSource("filmIds", filmIds);
-
-        List<Film> films = namedJdbc.query(FIND_FILMS_BY_IDS, params, rowMapper);
+        List<Film> films = findMany(FIND_FILMS_BY_IDS, params);
         enrichFilmsData(films);
-
         return films;
     }
 
     @Override
     public List<Long> findUserLikedFilmIds(long userId) {
-        return jdbc.queryForList(USER_LIKES_BY_ID, Long.class, userId);
+        return findList(USER_LIKES_BY_ID, Long.class, userId);
     }
 
     @Override
     public Map<Long, List<Long>> findAllUsersLikedFilmIds() {
         return jdbc.query(USER_LIKES, rs -> {
             Map<Long, List<Long>> result = new HashMap<>();
-
             while (rs.next()) {
                 result.computeIfAbsent(
                         rs.getLong("user_id"),
                         v -> new ArrayList<>()
                 ).add(rs.getLong("film_id"));
             }
-
             return result;
         });
     }
@@ -321,8 +303,11 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
     }
 
     private void enrichFilmData(Film film) {
-        film.setGenres(jdbc.query(FIND_GENRES_BY_FILM_ID, genreRowMapper, film.getId()));
-        film.setDirectors(jdbc.query(FIND_DIRECTORS_BY_FILM_ID, directorRowMapper, film.getId()));
+        List<Genre> genres = findMany(FIND_GENRES_BY_FILM_ID, genreRowMapper, film.getId());
+        List<Director> directors = findMany(FIND_DIRECTORS_BY_FILM_ID, directorRowMapper, film.getId());
+
+        film.setGenres(genres);
+        film.setDirectors(directors);
     }
 
     private void enrichFilmsData(List<Film> films) {
@@ -330,32 +315,48 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
         List<Long> ids = films.stream().map(Film::getId).toList();
         MapSqlParameterSource params = new MapSqlParameterSource("ids", ids);
 
-        Map<Long, List<Genre>> genresMap = namedJdbc.query(
-                "SELECT fg.film_id, g.* FROM genres g JOIN film_genres fg ON g.id = fg.genre_id WHERE fg.film_id IN (:ids)", params, rs -> {
-                    Map<Long, List<Genre>> result = new HashMap<>();
-                    while (rs.next()) {
-                        result.computeIfAbsent(
-                                rs.getLong("film_id"),
-                                k -> new ArrayList<>()).add(genreRowMapper.mapRow(rs, rs.getRow())
-                        );
-                    }
-                    return result;
-                });
+        Map<Long, List<Genre>> genresMap = namedJdbc.query(FIND_GENRES_BY_FILM_IDS, params, rs -> {
+            Map<Long, List<Genre>> result = new HashMap<>();
+            while (rs.next()) {
+                result.computeIfAbsent(
+                        rs.getLong("film_id"),
+                        k -> new ArrayList<>()).add(genreRowMapper.mapRow(rs, rs.getRow())
+                );
+            }
+            return result;
+        });
 
-        Map<Long, List<Director>> directorsMap = namedJdbc.query(
-                "SELECT fd.film_id, d.* FROM directors d JOIN film_directors fd ON d.director_id = fd.director_id WHERE fd.film_id IN (:ids)",
-                params, rs -> {
-                    Map<Long, List<Director>> result = new HashMap<>();
-                    while (rs.next()) {
-                        Director d = directorRowMapper.mapRow(rs, rs.getRow());
-                        result.computeIfAbsent(rs.getLong("film_id"), k -> new ArrayList<>()).add(d);
-                    }
-                    return result;
-                });
+        Map<Long, List<Director>> directorsMap = namedJdbc.query(FIND_DIRECTORS_BY_FILM_IDS, params, rs -> {
+            Map<Long, List<Director>> result = new HashMap<>();
+            while (rs.next()) {
+                Director d = directorRowMapper.mapRow(rs, rs.getRow());
+                result.computeIfAbsent(rs.getLong("film_id"), k -> new ArrayList<>()).add(d);
+            }
+            return result;
+        });
 
         films.forEach(f -> {
             f.setGenres(genresMap.getOrDefault(f.getId(), Collections.emptyList()));
             f.setDirectors(directorsMap.getOrDefault(f.getId(), new ArrayList<>()));
         });
+    }
+
+    private void updateRelations(Film film) {
+        updateWithoutCheck(DELETE_FILM_GENRES, film.getId());
+        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
+            List<Object[]> batchArgs = film.getGenres().stream()
+                    .distinct()
+                    .map(genre -> new Object[]{film.getId(), genre.getId()})
+                    .toList();
+            batchUpdate(INSERT_FILM_GENRE, batchArgs);
+        }
+
+        updateWithoutCheck(DELETE_FILM_DIRECTORS, film.getId());
+        if (film.getDirectors() != null && !film.getDirectors().isEmpty()) {
+            List<Object[]> batchArgs = film.getDirectors().stream()
+                    .map(d -> new Object[]{film.getId(), d.getId()})
+                    .toList();
+            batchUpdate(INSERT_FILM_DIRECTOR, batchArgs);
+        }
     }
 }

@@ -3,22 +3,33 @@ package ru.yandex.practicum.filmorate.storage.event;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Event;
-import ru.yandex.practicum.filmorate.model.EventType;
-import ru.yandex.practicum.filmorate.model.Operation;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
 
 @Repository
 @Slf4j
 public class EventDbStorage extends BaseDbStorage<Event> implements EventStorage {
 
-    public EventDbStorage(JdbcTemplate jdbcTemplate) {
-        super(jdbcTemplate, new EventRowMapper());
+    private static final String INSERT_EVENT = """
+            INSERT INTO events (timestamp, user_id, event_type, operation, entity_id)
+            VALUES (?, ?, ?, ?, ?)
+            """;
+
+    private static final String EVENTS_BY_USER_ID = """
+            SELECT event_id, timestamp, user_id, event_type, operation, entity_id
+            FROM events
+            WHERE user_id = ?
+            ORDER BY timestamp ASC
+            """;
+
+    public EventDbStorage(JdbcTemplate jdbc,
+                          RowMapper<Event> eventRowMapper,
+                          NamedParameterJdbcTemplate namedJdbc) {
+        super(jdbc, namedJdbc, eventRowMapper);
     }
 
     @Override
@@ -26,12 +37,8 @@ public class EventDbStorage extends BaseDbStorage<Event> implements EventStorage
         log.debug("Saving event: userId={}, type={}, operation={}, entityId={}",
                 event.getUserId(), event.getEventType(), event.getOperation(), event.getEntityId());
 
-        String sql = """
-                INSERT INTO events (timestamp, user_id, event_type, operation, entity_id)
-                VALUES (?, ?, ?, ?, ?)
-                """;
-
-        long eventId = insert(sql,
+        long eventId = insert(
+                INSERT_EVENT,
                 event.getTimestamp(),
                 event.getUserId(),
                 event.getEventType().getValue(),
@@ -49,28 +56,7 @@ public class EventDbStorage extends BaseDbStorage<Event> implements EventStorage
     public List<Event> findFeedByUserId(Long userId) {
         log.debug("Fetching feed for user {})", userId);
 
-        String sql = """
-                SELECT event_id, timestamp, user_id, event_type, operation, entity_id
-                FROM events
-                WHERE user_id = ?
-                ORDER BY timestamp ASC
-                """;
-
-        return findMany(sql, userId);
-    }
-
-    private static class EventRowMapper implements RowMapper<Event> {
-        @Override
-        public Event mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return Event.builder()
-                    .eventId(rs.getLong("event_id"))
-                    .timestamp(rs.getLong("timestamp"))
-                    .userId(rs.getLong("user_id"))
-                    .eventType(EventType.valueOf(rs.getString("event_type")))
-                    .operation(Operation.valueOf(rs.getString("operation")))
-                    .entityId(rs.getLong("entity_id"))
-                    .build();
-        }
+        return findMany(EVENTS_BY_USER_ID, userId);
     }
 }
 

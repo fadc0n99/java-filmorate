@@ -1,9 +1,9 @@
 package ru.yandex.practicum.filmorate.storage.review;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.model.VoteType;
@@ -60,8 +60,10 @@ public class ReviewDbStorage extends BaseDbStorage<Review> implements ReviewStor
             WHERE review_id = ?
             """;
 
-    public ReviewDbStorage(JdbcTemplate jdbc, RowMapper<Review> rowMapper) {
-        super(jdbc, rowMapper);
+    public ReviewDbStorage(JdbcTemplate jdbc,
+                           NamedParameterJdbcTemplate namedJdbc,
+                           RowMapper<Review> rowMapper) {
+        super(jdbc, namedJdbc, rowMapper);
     }
 
     @Override
@@ -116,7 +118,7 @@ public class ReviewDbStorage extends BaseDbStorage<Review> implements ReviewStor
 
     @Override
     public boolean isExistById(long reviewId) {
-        return isExistOne(EXISTS_BY_ID, reviewId);
+        return exists(EXISTS_BY_ID, reviewId);
     }
 
     @Override
@@ -152,16 +154,12 @@ public class ReviewDbStorage extends BaseDbStorage<Review> implements ReviewStor
 
     @Override
     public Optional<VoteType> findUserVote(long reviewId, long userId) {
-        try {
-            String voteType = jdbc.queryForObject(FIND_USER_VOTE, String.class, reviewId, userId);
-            return Optional.of(VoteType.valueOf(voteType));
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
+        return findOne(FIND_USER_VOTE, String.class, reviewId, userId)
+                .map(VoteType::valueOf);
     }
 
     @Override
     public boolean existsByUserAndFilm(Long userId, Long filmId) {
-        return isExistOne(EXISTS_BY_USER_AND_FILM, userId, filmId);
+        return exists(EXISTS_BY_USER_AND_FILM, userId, filmId);
     }
 }

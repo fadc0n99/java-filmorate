@@ -25,11 +25,10 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
             """;
     private static final String EXISTS_GENRES = "";
 
-    private final NamedParameterJdbcTemplate namedJdbc;
-
-    public GenreDbStorage(JdbcTemplate jdbc, RowMapper<Genre> rowMapper) {
-        super(jdbc, rowMapper);
-        this.namedJdbc = new NamedParameterJdbcTemplate(jdbc);
+    public GenreDbStorage(JdbcTemplate jdbc,
+                          NamedParameterJdbcTemplate namedJdbc,
+                          RowMapper<Genre> rowMapper) {
+        super(jdbc, namedJdbc, rowMapper);
     }
 
     @Override
@@ -50,7 +49,7 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("ids", uniqueIds);
 
-        return namedJdbc.query(FIND_GENRE_BY_IDS, parameters, rowMapper);
+        return findMany(FIND_GENRE_BY_IDS, parameters);
     }
 
     @Override
@@ -61,7 +60,7 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("ids", uniqueGenreIds);
 
-        return namedJdbc.queryForList(FIND_GENRES_IDS, params, Long.class);
+        return findList(FIND_GENRES_IDS, Long.class, params);
     }
 
     @Override
@@ -87,7 +86,7 @@ public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage
 
     @Override
     public boolean isExistById(long id) {
-        return isExistOne(EXISTS_GENRES, id);
+        return exists(EXISTS_GENRES, id);
     }
 
     @Override

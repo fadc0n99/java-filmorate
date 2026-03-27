@@ -15,7 +15,7 @@ import ru.yandex.practicum.filmorate.model.Operation;
 import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.model.VoteType;
 import ru.yandex.practicum.filmorate.storage.review.ReviewStorage;
-import ru.yandex.practicum.filmorate.utils.ValidationUtils;
+import ru.yandex.practicum.filmorate.utils.ValidationEntityUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,13 +26,13 @@ public class ReviewService {
 
     private final ReviewStorage reviewStorage;
     private final FeedService feedService;
-    private final ValidationUtils validationUtils;
+    private final ValidationEntityUtils validationEntityUtils;
 
     public ReviewService(ReviewStorage reviewStorage,
-                         ValidationUtils validationUtils,
+                         ValidationEntityUtils validationEntityUtils,
                          FeedService feedService) {
         this.reviewStorage = reviewStorage;
-        this.validationUtils = validationUtils;
+        this.validationEntityUtils = validationEntityUtils;
         this.feedService = feedService;
     }
 
@@ -40,9 +40,9 @@ public class ReviewService {
 
     @Transactional
     public ResponseReviewDto saveReview(CreateReviewDto reviewDto) {
-        validationUtils.validateNoDuplicateReview(reviewDto.getUserId(), reviewDto.getFilmId());
-        validationUtils.validateUserExists(reviewDto.getUserId());
-        validationUtils.validateFilmExists(reviewDto.getFilmId());
+        validationEntityUtils.validateNoDuplicateReview(reviewDto.getUserId(), reviewDto.getFilmId());
+        validationEntityUtils.validateUserExists(reviewDto.getUserId());
+        validationEntityUtils.validateFilmExists(reviewDto.getFilmId());
 
         Review review = ReviewMapper.toEntity(reviewDto);
         review = reviewStorage.save(review);
@@ -137,7 +137,7 @@ public class ReviewService {
     }
 
     private void processAddVote(Long id, Long userId, VoteType voteType) {
-        validationUtils.validateReviewExists(id);
+        validationEntityUtils.validateReviewExists(id);
 
         Optional<VoteType> currentVote = reviewStorage.findUserVote(id, userId);
         if (currentVote.isPresent()) {
@@ -155,7 +155,7 @@ public class ReviewService {
     }
 
     private void processDeleteVote(Long id, Long userId, VoteType voteType) {
-        validationUtils.validateReviewExists(id);
+        validationEntityUtils.validateReviewExists(id);
 
         Optional<VoteType> currentVote = reviewStorage.findUserVote(id, userId);
         if (currentVote.isEmpty()) {

@@ -16,7 +16,7 @@ import ru.yandex.practicum.filmorate.model.Operation;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 import org.springframework.context.annotation.Lazy;
-import ru.yandex.practicum.filmorate.utils.ValidationUtils;
+import ru.yandex.practicum.filmorate.utils.ValidationEntityUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,14 +27,14 @@ public class UserService {
 
     private final UserStorage userStorage;
     private final FeedService feedService;
-    private final ValidationUtils validationUtils;
+    private final ValidationEntityUtils validationEntityUtils;
 
     @Autowired
     public UserService(@Qualifier("userDbStorage") UserStorage userStorage,
-                       ValidationUtils validationUtils,
+                       ValidationEntityUtils validationEntityUtils,
                        @Lazy FeedService feedService) {
         this.userStorage = userStorage;
-        this.validationUtils = validationUtils;
+        this.validationEntityUtils = validationEntityUtils;
         this.feedService = feedService;
     }
 
@@ -85,10 +85,9 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException(ErrorMessages.userNotFound(userId)));
     }
 
-    // метод для удаления пользователя
     public void deleteUser(Long userId) {
         log.debug("Deleting user with ID: {}", userId);
-        validationUtils.validateUserExists(userId);
+        validationEntityUtils.validateUserExists(userId);
         userStorage.delete(userId);
         log.info("User {} deleted successfully", userId);
     }
@@ -109,7 +108,7 @@ public class UserService {
     }
 
     public List<UserDto> getUserFriends(long userId) {
-        validationUtils.validateUserExists(userId);
+        validationEntityUtils.validateUserExists(userId);
 
         log.debug("Retrieving friends for user ID: {}", userId);
         return userStorage.getUserFriends(userId).stream()
@@ -153,8 +152,8 @@ public class UserService {
             log.error("User {} attempted to interact with themselves", userId);
             throw new ValidationException(ErrorMessages.SELF_INTERACTION);
         }
-        validationUtils.validateUserExists(userId);
-        validationUtils.validateUserExists(otherUserId);
+        validationEntityUtils.validateUserExists(userId);
+        validationEntityUtils.validateUserExists(otherUserId);
     }
 
 }

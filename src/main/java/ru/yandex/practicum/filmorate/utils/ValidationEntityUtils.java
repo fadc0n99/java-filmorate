@@ -21,7 +21,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Component
-public class ValidationUtils {
+public class ValidationEntityUtils {
 
     private final FilmStorage filmStorage;
     private final GenreStorage genreStorage;
@@ -33,12 +33,12 @@ public class ValidationUtils {
     private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
 
     @Autowired
-    public ValidationUtils(@Qualifier("filmDbStorage") FilmStorage filmStorage,
-                       GenreStorage genreStorage,
-                       MpaStorage mpaStorage,
-                       @Qualifier("userDbStorage") UserStorage userStorage,
-                           ReviewStorage reviewStorage,
-                       DirectorStorage directorStorage) {
+    public ValidationEntityUtils(@Qualifier("filmDbStorage") FilmStorage filmStorage,
+                                 GenreStorage genreStorage,
+                                 MpaStorage mpaStorage,
+                                 @Qualifier("userDbStorage") UserStorage userStorage,
+                                 ReviewStorage reviewStorage,
+                                 DirectorStorage directorStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
         this.directorStorage = directorStorage;

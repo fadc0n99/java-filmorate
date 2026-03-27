@@ -23,11 +23,10 @@ public class MpaDbStorage extends BaseDbStorage<Mpa> implements MpaStorage {
             WHERE f.id IN (:filmIds)
             """;
 
-    private final NamedParameterJdbcTemplate namedJdbc;
-
-    public MpaDbStorage(JdbcTemplate jdbc, RowMapper<Mpa> rowMapper) {
-        super(jdbc, rowMapper);
-        this.namedJdbc = new NamedParameterJdbcTemplate(jdbc);
+    public MpaDbStorage(JdbcTemplate jdbc,
+                          NamedParameterJdbcTemplate namedJdbc,
+                          RowMapper<Mpa> rowMapper) {
+        super(jdbc, namedJdbc, rowMapper);
     }
 
     @Override
@@ -45,12 +44,12 @@ public class MpaDbStorage extends BaseDbStorage<Mpa> implements MpaStorage {
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("ids", mpaIds);
 
-        return new HashSet<>(namedJdbc.query(FIND_MPA_BY_IDS, parameters, rowMapper));
+        return new HashSet<>(findMany(FIND_MPA_BY_IDS, parameters));
     }
 
     @Override
     public boolean isExistById(Long mpaId) {
-        return isExistOne(EXIST_MPA_ID, mpaId);
+        return exists(EXIST_MPA_ID, mpaId);
     }
 
     @Override

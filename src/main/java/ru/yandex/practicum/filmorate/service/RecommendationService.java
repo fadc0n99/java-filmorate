@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.dto.film.FilmDto;
 import ru.yandex.practicum.filmorate.mapper.FilmMapper;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.utils.ValidationUtils;
+import ru.yandex.practicum.filmorate.utils.ValidationEntityUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -20,17 +20,17 @@ import java.util.stream.Collectors;
 public class RecommendationService {
 
     private final FilmStorage filmStorage;
-    private final ValidationUtils validationUtils;
+    private final ValidationEntityUtils validationEntityUtils;
 
     @Autowired
     public RecommendationService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
-                                 ValidationUtils validationUtils) {
+                                 ValidationEntityUtils validationEntityUtils) {
         this.filmStorage = filmStorage;
-        this.validationUtils = validationUtils;
+        this.validationEntityUtils = validationEntityUtils;
     }
 
     public List<FilmDto> getFilmRecommendationsByUserLikes(long userId) {
-        validationUtils.validateUserExists(userId);
+        validationEntityUtils.validateUserExists(userId);
 
         List<Long> userLikes = filmStorage.findUserLikedFilmIds(userId);
         log.debug("Target user with id: {} has {} likes: {}", userId, userLikes.size(), userLikes);

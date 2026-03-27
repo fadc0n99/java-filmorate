@@ -17,18 +17,17 @@ import java.util.List;
 public class MpaService {
 
     private final MpaStorage mpaStorage;
-    private final MpaMapper mpaMapper;
 
     public List<MpaDto> findAllMpa() {
         return mpaStorage.findAll()
                 .stream()
-                .map(mpaMapper::toDto)
+                .map(MpaMapper::toDto)
                 .toList();
     }
 
     public MpaDto findMpaById(long id) {
         return mpaStorage.findById(id)
-                .map(mpaMapper::toDto)
+                .map(MpaMapper::toDto)
                 .orElseThrow(() -> new NotFoundException(ErrorMessages.mpaNotFound(id)));
     }
 }

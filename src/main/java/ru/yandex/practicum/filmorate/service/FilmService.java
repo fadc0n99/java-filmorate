@@ -15,7 +15,7 @@ import ru.yandex.practicum.filmorate.model.EventType;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Operation;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.utils.ValidationUtils;
+import ru.yandex.practicum.filmorate.utils.ValidationEntityUtils;
 
 import java.util.*;
 
@@ -25,14 +25,14 @@ public class FilmService {
 
     private final FilmStorage filmStorage;
     private final FeedService feedService;
-    private final ValidationUtils validationUtils;
+    private final ValidationEntityUtils validationEntityUtils;
 
     @Autowired
     public FilmService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
-                       ValidationUtils validationUtils,
+                       ValidationEntityUtils validationEntityUtils,
                        FeedService feedService) {
         this.filmStorage = filmStorage;
-        this.validationUtils = validationUtils;
+        this.validationEntityUtils = validationEntityUtils;
         this.feedService = feedService;
     }
 
@@ -47,12 +47,12 @@ public class FilmService {
     @Transactional
     public FilmDto createFilm(CreateFilmDto createFilmDto) {
         log.debug("Starting add film: {}", createFilmDto);
-        validationUtils.validateMpaRating(createFilmDto.getMpa());
-        validationUtils.validateGenres(createFilmDto.getGenres());
-        validationUtils.validateDirectors(createFilmDto.getDirectors());
+        validationEntityUtils.validateMpaRating(createFilmDto.getMpa());
+        validationEntityUtils.validateGenres(createFilmDto.getGenres());
+        validationEntityUtils.validateDirectors(createFilmDto.getDirectors());
 
         Film film = FilmMapper.toEntity(createFilmDto);
-        validationUtils.validateMinFilmDate(film);
+        validationEntityUtils.validateMinFilmDate(film);
 
         film = filmStorage.save(film);
         return FilmMapper.toDto(film);
@@ -60,15 +60,15 @@ public class FilmService {
 
     @Transactional
     public FilmDto updateFilm(UpdateFilmDto updateFilmDto) {
-        validationUtils.validateMpaRating(updateFilmDto.getMpa());
-        validationUtils.validateGenres(updateFilmDto.getGenres());
-        validationUtils.validateDirectors(updateFilmDto.getDirectors());
+        validationEntityUtils.validateMpaRating(updateFilmDto.getMpa());
+        validationEntityUtils.validateGenres(updateFilmDto.getGenres());
+        validationEntityUtils.validateDirectors(updateFilmDto.getDirectors());
 
         Film updatedFilm = filmStorage.findFilmById(updateFilmDto.getId())
                 .map(film -> FilmMapper.updateFilmFields(film, updateFilmDto))
                 .orElseThrow(() -> new NotFoundException(ErrorMessages.filmNotFound(updateFilmDto.getId())));
 
-        validationUtils.validateMinFilmDate(updatedFilm);
+        validationEntityUtils.validateMinFilmDate(updatedFilm);
         updatedFilm = filmStorage.update(updatedFilm);
 
         return FilmMapper.toDto(updatedFilm);
@@ -82,17 +82,16 @@ public class FilmService {
                 .orElseThrow(() -> new NotFoundException(ErrorMessages.filmNotFound(id)));
     }
 
-    // метод для удаления фильма
     @Transactional
     public void deleteFilm(Long filmId) {
         log.debug("Deleting film with ID: {}", filmId);
-        validationUtils.validateFilmExists(filmId);
+        validationEntityUtils.validateFilmExists(filmId);
         filmStorage.delete(filmId);
         log.info("Film {} deleted successfully", filmId);
     }
 
     public List<FilmDto> getFilmsByDirector(Integer directorId, String sortBy) {
-        validationUtils.validateDirectorExists(directorId);
+        validationEntityUtils.validateDirectorExists(directorId);
 
         log.debug("Retrieving films for director ID: {} sorted by {}", directorId, sortBy);
         List<Film> films = filmStorage.findAllByDirector(directorId, sortBy);
@@ -111,8 +110,8 @@ public class FilmService {
     }
 
     public void addFilmLike(Long filmId, Long userId) {
-        validationUtils.validateFilmExists(filmId);
-        validationUtils.validateUserExists(userId);
+        validationEntityUtils.validateFilmExists(filmId);
+        validationEntityUtils.validateUserExists(userId);
 
         log.debug("Adding like. Film: {}, User: {}", filmId, userId);
         if (!filmStorage.isLikeExists(filmId, userId)) {
@@ -124,8 +123,8 @@ public class FilmService {
     }
 
     public void removeFilmLike(Long filmId, Long userId) {
-        validationUtils.validateFilmExists(filmId);
-        validationUtils.validateUserExists(userId);
+        validationEntityUtils.validateFilmExists(filmId);
+        validationEntityUtils.validateUserExists(userId);
 
         log.debug("Removing like. Film: {}, User: {}", filmId, userId);
 
@@ -140,8 +139,8 @@ public class FilmService {
 
     public List<FilmDto> getCommonFilmsSortedByPopularity(Long userId, Long friendId) {
         log.debug("List of movies sorted by popularity");
-        validationUtils.validateUserExists(userId);
-        validationUtils.validateUserExists(friendId);
+        validationEntityUtils.validateUserExists(userId);
+        validationEntityUtils.validateUserExists(friendId);
 
         List<Film> commonFilms = filmStorage.getCommonFilms(userId, friendId);
         return commonFilms.stream()
