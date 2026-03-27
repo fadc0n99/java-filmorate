@@ -73,27 +73,33 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             ORDER BY COUNT(fl.user_id) DESC
             """;
 
-    private static final String FIND_RECOMMENDATIONS = """
+    private static final String FIND_MAX_INTERSECTION = """
+            SELECT MAX(common_count)
+            FROM (
+                SELECT COUNT(fl.film_id) AS common_count
+                FROM film_likes fl
+                WHERE fl.user_id != ?
+                    AND fl.film_id IN (SELECT film_id FROM film_likes WHERE user_id = ?)
+                GROUP BY fl.user_id
+            )
+            """;
+
+    private static final String FIND_RECOMMENDATIONS_BY_MAX_INTERSECTION = """
             SELECT f.*, m.*
             FROM films f
             LEFT JOIN mpa_ratings m ON f.mpa_rating_id = m.mpa_id
             WHERE f.id IN (
                 SELECT fl.film_id
                 FROM film_likes fl
-                WHERE fl.user_id = (
+                WHERE fl.user_id IN (
                     SELECT fl2.user_id
                     FROM film_likes fl2
                     WHERE fl2.user_id != ?
-                        AND fl2.film_id IN (
-                            SELECT film_id FROM film_likes WHERE user_id = ?
-                        )
+                        AND fl2.film_id IN (SELECT film_id FROM film_likes WHERE user_id = ?)
                     GROUP BY fl2.user_id
-                    ORDER BY COUNT(fl2.film_id) DESC
-                    LIMIT 1
+                    HAVING COUNT(fl2.film_id) = ?
                 )
-                AND fl.film_id NOT IN (
-                    SELECT film_id FROM film_likes WHERE user_id = ?
-                )
+                AND fl.film_id NOT IN (SELECT film_id FROM film_likes WHERE user_id = ?)
             )
             """;
 
@@ -298,9 +304,21 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
 
     @Override
     public List<Film> findRecommendationsByUserId(long userId) {
-        List<Film> recommendations = findMany(FIND_RECOMMENDATIONS, userId, userId, userId);
-        enrichFilmsData(recommendations);
-        return recommendations;
+        Optional<Integer> maxIntersection = findOne(FIND_MAX_INTERSECTION, Integer.class, userId, userId);
+
+        if (maxIntersection.isEmpty() || maxIntersection.get() == 0) {
+            return Collections.emptyList();
+        }
+
+        List<Film> films = findMany(
+                FIND_RECOMMENDATIONS_BY_MAX_INTERSECTION,
+                userId,
+                userId,
+                maxIntersection.get(),
+                userId);
+
+        enrichFilmsData(films);
+        return films;
     }
 
     public List<Film> search(String query, String by) {
