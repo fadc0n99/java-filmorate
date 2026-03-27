@@ -73,6 +73,30 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             ORDER BY COUNT(fl.user_id) DESC
             """;
 
+    private static final String FIND_RECOMMENDATIONS = """
+            SELECT f.*, m.*
+            FROM films f
+            LEFT JOIN mpa_ratings m ON f.mpa_rating_id = m.mpa_id
+            WHERE f.id IN (
+                SELECT fl.film_id
+                FROM film_likes fl
+                WHERE fl.user_id = (
+                    SELECT fl2.user_id
+                    FROM film_likes fl2
+                    WHERE fl2.user_id != ?
+                        AND fl2.film_id IN (
+                            SELECT film_id FROM film_likes WHERE user_id = ?
+                        )
+                    GROUP BY fl2.user_id
+                    ORDER BY COUNT(fl2.film_id) DESC
+                    LIMIT 1
+                )
+                AND fl.film_id NOT IN (
+                    SELECT film_id FROM film_likes WHERE user_id = ?
+                )
+            )
+            """;
+
     private static final String EXISTS_FILM_BY_ID = "SELECT EXISTS(SELECT 1 FROM films WHERE id = ?)";
 
     private static final String FIND_POPULAR_FILMS = """
@@ -270,6 +294,13 @@ public class FilmDbStorage extends BaseDbStorage<Film> implements FilmStorage {
             }
             return result;
         });
+    }
+
+    @Override
+    public List<Film> findRecommendationsByUserId(long userId) {
+        List<Film> recommendations = findMany(FIND_RECOMMENDATIONS, userId, userId, userId);
+        enrichFilmsData(recommendations);
+        return recommendations;
     }
 
     public List<Film> search(String query, String by) {

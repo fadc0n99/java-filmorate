@@ -30,6 +30,8 @@ public interface FilmStorage {
 
     List<Film> findFilmsByIds(List<Long> filmIds);
 
+    List<Film> findRecommendationsByUserId(long userId);
+
     List<Long> findUserLikedFilmIds(long userId);
 
     public Map<Long, List<Long>> findAllUsersLikedFilmIds();
