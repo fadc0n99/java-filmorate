@@ -1,7 +1,6 @@
 package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.dto.review.CreateReviewDto;
@@ -15,9 +14,8 @@ import ru.yandex.practicum.filmorate.model.EventType;
 import ru.yandex.practicum.filmorate.model.Operation;
 import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.model.VoteType;
-import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.review.ReviewStorage;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
+import ru.yandex.practicum.filmorate.utils.ValidationUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,32 +25,29 @@ import java.util.Optional;
 public class ReviewService {
 
     private final ReviewStorage reviewStorage;
-    private final UserStorage userStorage;
-    private final FilmStorage filmStorage;
-    private final FeedService feedService; // ✅ Добавлено
+    private final FeedService feedService;
+    private final ValidationUtils validationUtils;
 
     public ReviewService(ReviewStorage reviewStorage,
-                         @Qualifier("userDbStorage") UserStorage userStorage,
-                         @Qualifier("filmDbStorage") FilmStorage filmStorage,
-                         FeedService feedService) { // ✅ Добавлено
+                         ValidationUtils validationUtils,
+                         FeedService feedService) {
         this.reviewStorage = reviewStorage;
-        this.userStorage = userStorage;
-        this.filmStorage = filmStorage;
-        this.feedService = feedService; // ✅ Добавлено
+        this.validationUtils = validationUtils;
+        this.feedService = feedService;
     }
 
     private static final int DEFAULT_REVIEW_LIMIT = 10;
 
     @Transactional
     public ResponseReviewDto saveReview(CreateReviewDto reviewDto) {
-        validateNoDuplicateReview(reviewDto.getUserId(), reviewDto.getFilmId());
-        validateUserExists(reviewDto.getUserId());
-        validateFilmExists(reviewDto.getFilmId());
+        validationUtils.validateNoDuplicateReview(reviewDto.getUserId(), reviewDto.getFilmId());
+        validationUtils.validateUserExists(reviewDto.getUserId());
+        validationUtils.validateFilmExists(reviewDto.getFilmId());
 
         Review review = ReviewMapper.toEntity(reviewDto);
         review = reviewStorage.save(review);
 
-        feedService.logEvent(
+        feedService.saveEvent(
                 review.getUserId(),
                 EventType.REVIEW,
                 Operation.ADD,
@@ -72,7 +67,7 @@ public class ReviewService {
 
         review = reviewStorage.update(review);
 
-        feedService.logEvent(
+        feedService.saveEvent(
                 review.getUserId(),
                 EventType.REVIEW,
                 Operation.UPDATE,
@@ -89,7 +84,7 @@ public class ReviewService {
 
         reviewStorage.delete(id);
 
-        feedService.logEvent(
+        feedService.saveEvent(
                 review.getUserId(),
                 EventType.REVIEW,
                 Operation.REMOVE,
@@ -142,7 +137,7 @@ public class ReviewService {
     }
 
     private void processAddVote(Long id, Long userId, VoteType voteType) {
-        validateReviewExists(id);
+        validationUtils.validateReviewExists(id);
 
         Optional<VoteType> currentVote = reviewStorage.findUserVote(id, userId);
         if (currentVote.isPresent()) {
@@ -160,7 +155,7 @@ public class ReviewService {
     }
 
     private void processDeleteVote(Long id, Long userId, VoteType voteType) {
-        validateReviewExists(id);
+        validationUtils.validateReviewExists(id);
 
         Optional<VoteType> currentVote = reviewStorage.findUserVote(id, userId);
         if (currentVote.isEmpty()) {
@@ -177,28 +172,5 @@ public class ReviewService {
 
         reviewStorage.updateReviewUseful(id);
     }
-
-    private void validateFilmExists(long filmId) {
-        if (!filmStorage.isExistById(filmId)) {
-            throw new NotFoundException(ErrorMessages.filmNotFound(filmId));
-        }
-    }
-
-    private void validateUserExists(long userId) {
-        if (!userStorage.isExistById(userId)) {
-            throw new NotFoundException(ErrorMessages.userNotFound(userId));
-        }
-    }
-
-    private void validateReviewExists(long reviewId) {
-        if (!reviewStorage.isExistById(reviewId)) {
-            throw new NotFoundException(ErrorMessages.reviewNotFound(reviewId));
-        }
-    }
-
-    private void validateNoDuplicateReview(long userId, long filmId) {
-        if (reviewStorage.existsByUserAndFilm(userId, filmId)) {
-            throw new ValidationException(ErrorMessages.REVIEW_ALREADY_EXISTS);
-        }
-    }
 }
+

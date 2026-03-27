@@ -15,7 +15,8 @@ import ru.yandex.practicum.filmorate.model.EventType;
 import ru.yandex.practicum.filmorate.model.Operation;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
-import org.springframework.context.annotation.Lazy; //добавлено
+import org.springframework.context.annotation.Lazy;
+import ru.yandex.practicum.filmorate.utils.ValidationUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,13 +26,16 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserStorage userStorage;
-    private final FeedService feedService; // <-- ДОБАВЛЕНО
+    private final FeedService feedService;
+    private final ValidationUtils validationUtils;
 
     @Autowired
     public UserService(@Qualifier("userDbStorage") UserStorage userStorage,
-                       @Lazy FeedService feedService) { // <-- ДОБАВЛЕНО
+                       ValidationUtils validationUtils,
+                       @Lazy FeedService feedService) {
         this.userStorage = userStorage;
-        this.feedService = feedService; // <-- ДОБАВЛЕНО
+        this.validationUtils = validationUtils;
+        this.feedService = feedService;
     }
 
     public List<UserDto> findAllUsers() {
@@ -84,7 +88,7 @@ public class UserService {
     // метод для удаления пользователя
     public void deleteUser(Long userId) {
         log.debug("Deleting user with ID: {}", userId);
-        validateUserExists(userId);
+        validationUtils.validateUserExists(userId);
         userStorage.delete(userId);
         log.info("User {} deleted successfully", userId);
     }
@@ -100,12 +104,12 @@ public class UserService {
 
         userStorage.addFriendship(userId, friendId);
 
-        feedService.logEvent(userId, EventType.FRIEND, Operation.ADD, friendId);
+        feedService.saveEvent(userId, EventType.FRIEND, Operation.ADD, friendId);
         log.info("Friendship added between user {} and user {}", userId, friendId);
     }
 
     public List<UserDto> getUserFriends(long userId) {
-        validateUserExists(userId);
+        validationUtils.validateUserExists(userId);
 
         log.debug("Retrieving friends for user ID: {}", userId);
         return userStorage.getUserFriends(userId).stream()
@@ -121,7 +125,7 @@ public class UserService {
             userStorage.removeFriendship(userId, friendId);
             log.info("Friendship removed between user {} and user {}", userId, friendId);
 
-            feedService.logEvent(userId, EventType.FRIEND, Operation.REMOVE, friendId);
+            feedService.saveEvent(userId, EventType.FRIEND, Operation.REMOVE, friendId);
         } else {
             log.warn("Friendship not found between user {} and user {}", userId, friendId);
         }
@@ -149,13 +153,8 @@ public class UserService {
             log.error("User {} attempted to interact with themselves", userId);
             throw new ValidationException(ErrorMessages.SELF_INTERACTION);
         }
-        validateUserExists(userId);
-        validateUserExists(otherUserId);
+        validationUtils.validateUserExists(userId);
+        validationUtils.validateUserExists(otherUserId);
     }
 
-    private void validateUserExists(long userId) {
-        if (!userStorage.isExistById(userId)) {
-            throw new NotFoundException(ErrorMessages.userNotFound(userId));
-        }
-    }
 }

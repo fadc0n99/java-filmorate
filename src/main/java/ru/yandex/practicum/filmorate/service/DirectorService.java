@@ -41,13 +41,6 @@ public class DirectorService {
     }
 
     public void delete(Integer id) {
-        validateDirectorExists(id);
         directorStorage.delete(id);
-    }
-
-    public void validateDirectorExists(Integer id) {
-        if (!directorStorage.isExistById(id)) {
-            throw new NotFoundException(ErrorMessages.directorNotFound(id));
-        }
     }
 }

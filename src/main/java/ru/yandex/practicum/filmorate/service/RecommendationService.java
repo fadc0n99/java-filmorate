@@ -5,11 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.dto.film.FilmDto;
-import ru.yandex.practicum.filmorate.exception.ErrorMessages;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.FilmMapper;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
+import ru.yandex.practicum.filmorate.utils.ValidationUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -23,19 +21,19 @@ public class RecommendationService {
 
     private final FilmStorage filmStorage;
     private final FilmMapper filmMapper;
-    private final UserStorage userStorage;
+    private final ValidationUtils validationUtils;
 
     @Autowired
     public RecommendationService(@Qualifier("filmDbStorage") FilmStorage filmStorage,
                                  FilmMapper filmMapper,
-                                 @Qualifier("userDbStorage") UserStorage userStorage) {
+                                 ValidationUtils validationUtils) {
         this.filmStorage = filmStorage;
         this.filmMapper = filmMapper;
-        this.userStorage = userStorage;
+        this.validationUtils = validationUtils;
     }
 
     public List<FilmDto> getFilmRecommendationsByUserLikes(long userId) {
-        validateUserExists(userId);
+        validationUtils.validateUserExists(userId);
 
         List<Long> userLikes = filmStorage.findUserLikedFilmIds(userId);
         log.debug("Target user with id: {} has {} likes: {}", userId, userLikes.size(), userLikes);
@@ -95,11 +93,5 @@ public class RecommendationService {
         return otherUserLikes.stream()
                 .filter(userLikeFilmIds::contains)
                 .count();
-    }
-
-    private void validateUserExists(long userId) {
-        if (!userStorage.isExistById(userId)) {
-            throw new NotFoundException(ErrorMessages.userNotFound(userId));
-        }
     }
 }
