@@ -13,21 +13,20 @@ import java.util.*;
 @Repository
 public class MpaDbStorage extends BaseDbStorage<Mpa> implements MpaStorage {
     private static final String FIND_ALL_MPA = "SELECT * FROM mpa_ratings";
-    private static final String FIND_MPA_BY_ID = "SELECT * FROM mpa_ratings WHERE id = ?";
-    private static final String FIND_MPA_BY_IDS = "SELECT * FROM mpa_ratings WHERE id IN (:ids)";
-    private static final String EXIST_MPA_ID = "SELECT EXISTS(SELECT 1 FROM mpa_ratings WHERE id = ?)";
+    private static final String FIND_MPA_BY_ID = "SELECT * FROM mpa_ratings WHERE mpa_id = ?";
+    private static final String FIND_MPA_BY_IDS = "SELECT * FROM mpa_ratings WHERE mpa_id IN (:ids)";
+    private static final String EXIST_MPA_ID = "SELECT EXISTS(SELECT 1 FROM mpa_ratings WHERE mpa_id = ?)";
     private static final String FIND_MPA_BY_FILM_IDS = """
             SELECT f.id AS film_id, mr.*
             FROM films f
-            LEFT JOIN mpa_ratings mr ON f.mpa_rating_id = mr.id
+            LEFT JOIN mpa_ratings mr ON f.mpa_rating_id = mr.mpa_id
             WHERE f.id IN (:filmIds)
             """;
 
-    private final NamedParameterJdbcTemplate namedJdbc;
-
-    public MpaDbStorage(JdbcTemplate jdbc, RowMapper<Mpa> rowMapper) {
-        super(jdbc, rowMapper);
-        this.namedJdbc = new NamedParameterJdbcTemplate(jdbc);
+    public MpaDbStorage(JdbcTemplate jdbc,
+                          NamedParameterJdbcTemplate namedJdbc,
+                          RowMapper<Mpa> rowMapper) {
+        super(jdbc, namedJdbc, rowMapper);
     }
 
     @Override
@@ -45,12 +44,12 @@ public class MpaDbStorage extends BaseDbStorage<Mpa> implements MpaStorage {
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("ids", mpaIds);
 
-        return new HashSet<>(namedJdbc.query(FIND_MPA_BY_IDS, parameters, rowMapper));
+        return new HashSet<>(findMany(FIND_MPA_BY_IDS, parameters));
     }
 
     @Override
     public boolean isExistById(Long mpaId) {
-        return isExistOne(EXIST_MPA_ID, mpaId);
+        return exists(EXIST_MPA_ID, mpaId);
     }
 
     @Override

@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.storage.user;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.exception.ErrorMessages;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
 
@@ -128,6 +129,25 @@ public class InMemoryUserStorage implements UserStorage {
         return users.containsKey(userId);
     }
 
+    // метод для удаления пользователя
+    @Override
+    public void delete(Long id) {
+        if (!users.containsKey(id)) {
+            throw new NotFoundException(ErrorMessages.userNotFound(id));
+        }
+
+        // Удаляем пользователя из списков друзей у других пользователей
+        for (User user : users.values()) {
+            Set<Long> friendsIds = user.getFriendsIds();
+            if (friendsIds != null) {
+                friendsIds.remove(id);
+            }
+        }
+
+        users.remove(id);
+        log.debug("User {} deleted from in-memory storage", id);
+    }
+
     private Long generateId() {
         long currentId = users.keySet()
                 .stream()
@@ -140,3 +160,4 @@ public class InMemoryUserStorage implements UserStorage {
         return ++currentId;
     }
 }
+

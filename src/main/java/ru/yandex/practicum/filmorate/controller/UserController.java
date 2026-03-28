@@ -7,9 +7,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.yandex.practicum.filmorate.dto.film.FilmDto;
 import ru.yandex.practicum.filmorate.dto.user.CreateUserDto;
 import ru.yandex.practicum.filmorate.dto.user.UpdateUserDto;
 import ru.yandex.practicum.filmorate.dto.user.UserDto;
+import ru.yandex.practicum.filmorate.service.RecommendationService;
 import ru.yandex.practicum.filmorate.service.UserService;
 
 import java.util.List;
@@ -21,6 +23,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final RecommendationService recommendationService;
 
     @GetMapping
     public ResponseEntity<List<UserDto>> handleFindAll() {
@@ -63,6 +66,17 @@ public class UserController {
         return new ResponseEntity<>(user, HttpStatus.OK);
     }
 
+    // эндпоинт для удаления пользователя
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> handleDeleteUser(@PathVariable @Positive long id) {
+        log.debug("Request received: DELETE /users/{} - deleting user", id);
+
+        userService.deleteUser(id);
+
+        log.info("User {} deleted successfully", id);
+        return ResponseEntity.noContent().build(); // Возвращаем 204 No Content
+    }
+
     @GetMapping("/{id}/friends")
     public ResponseEntity<List<UserDto>> handleGetUserFriends(@PathVariable long id) {
         log.debug("Request received: GET /users/{}/friends - retrieving friends for user", id);
@@ -101,5 +115,15 @@ public class UserController {
 
         log.info("Found {} common friends", commonFriends.size());
         return ResponseEntity.ok(commonFriends);
+    }
+
+    @GetMapping("/{id}/recommendations")
+    public ResponseEntity<List<FilmDto>> getFilmRecommendations(@PathVariable long id) {
+        log.debug("Request received: GET /{}/recommendations/ - finding recommendation films for user ID", id);
+
+        List<FilmDto> recommendationFilms = recommendationService.getFilmRecommendationsByUserLikes(id);
+
+        log.info("Found {} recommendation films", recommendationFilms.size());
+        return ResponseEntity.ok(recommendationFilms);
     }
 }

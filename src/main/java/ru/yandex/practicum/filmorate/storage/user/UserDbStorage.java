@@ -2,7 +2,10 @@ package ru.yandex.practicum.filmorate.storage.user;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.yandex.practicum.filmorate.exception.ErrorMessages;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.BaseDbStorage;
 
@@ -73,8 +76,12 @@ public class UserDbStorage extends BaseDbStorage<User> implements UserStorage {
     )
     """;
 
-    public UserDbStorage(JdbcTemplate jdbcTemplate, RowMapper<User> rowMapper) {
-        super(jdbcTemplate, rowMapper);
+    private static final String DELETE_USER_QUERY = "DELETE FROM users WHERE id = ?";
+
+    public UserDbStorage(JdbcTemplate jdbcTemplate,
+                         NamedParameterJdbcTemplate namedJdbc,
+                         RowMapper<User> rowMapper) {
+        super(jdbcTemplate, namedJdbc, rowMapper);
     }
 
     @Override
@@ -121,7 +128,7 @@ public class UserDbStorage extends BaseDbStorage<User> implements UserStorage {
 
     @Override
     public Set<Long> getUserFriendsIds(long userId) {
-        List<Long> friendIds = jdbc.queryForList(FIND_FRIEND_IDS_QUERY, Long.class, userId);
+        List<Long> friendIds = findList(FIND_FRIEND_IDS_QUERY, Long.class, userId);
         return new HashSet<>(friendIds);
     }
 
@@ -143,16 +150,24 @@ public class UserDbStorage extends BaseDbStorage<User> implements UserStorage {
 
     @Override
     public boolean isFriend(long userId, long friendId) {
-        return isExistOne(EXIST_USER_FRIENDSHIP_QUERY, userId, friendId);
+        return exists(EXIST_USER_FRIENDSHIP_QUERY, userId, friendId);
     }
 
     @Override
     public boolean isExistById(long userId) {
-        return isExistOne(USER_EXISTS_QUERY, userId);
+        return exists(USER_EXISTS_QUERY, userId);
     }
 
     @Override
     public List<User> getUsersCommonFriends(long userId, long otherUserId) {
         return findMany(FIND_COMMON_FRIENDS, userId, otherUserId);
     }
+
+    @Override
+    public void delete(Long id) {
+        if (!delete(DELETE_USER_QUERY, id)) {
+            throw new NotFoundException(ErrorMessages.userNotFound(id));
+        }
+    }
 }
+

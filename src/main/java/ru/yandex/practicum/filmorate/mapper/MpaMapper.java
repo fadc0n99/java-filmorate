@@ -8,7 +8,7 @@ import ru.yandex.practicum.filmorate.model.Mpa;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class MpaMapper {
 
-    public static MpaDto mpaToMpaDto(Mpa mpa) {
+    public static MpaDto toDto(Mpa mpa) {
         return MpaDto.builder()
                 .id(mpa.getId())
                 .name(mpa.getName())
